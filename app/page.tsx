@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { 
-  Search, ShoppingCart, Phone, MapPin, 
-  Leaf, ShieldCheck, Sprout, Wrench, 
-  Star, Truck, Award, CheckCircle, MessageCircle, X, Loader2
+import { getYouTubeId } from "@/lib/media";
+import {
+  Search, ShoppingCart, Phone, MapPin,
+  Leaf, ShieldCheck, Sprout, Wrench,
+  Star, Truck, Award, CheckCircle, MessageCircle, X, Loader2, PlayCircle
 } from "lucide-react";
 
 interface Product {
@@ -18,6 +19,8 @@ interface Product {
   weight?: string;
   rating?: number;
   tag?: string;
+  image_url?: string | null;
+  video_url?: string | null;
 }
 
 export default function Home() {
@@ -25,6 +28,8 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [cart, setCart] = useState<{ product: Product; quantity: number }[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [videoProduct, setVideoProduct] = useState<Product | null>(null);
+  const videoYouTubeId = videoProduct?.video_url ? getYouTubeId(videoProduct.video_url) : null;
 
   // Supabase ನಿಂದ ಪ್ರಾಡಕ್ಟ್‌ಗಳನ್ನು ತರುವುದು
   useEffect(() => {
@@ -259,8 +264,26 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div className="h-32 bg-slate-100 rounded-lg flex items-center justify-center mb-4">
-                    <Sprout className="w-12 h-12 text-emerald-500" />
+                  <div className="relative h-40 bg-slate-100 rounded-lg flex items-center justify-center mb-4 overflow-hidden">
+                    {item.image_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={item.image_url}
+                        alt={item.name}
+                        loading="lazy"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <Sprout className="w-12 h-12 text-emerald-500" />
+                    )}
+                    {item.video_url && (
+                      <button
+                        onClick={() => setVideoProduct(item)}
+                        className="absolute bottom-2 right-2 bg-black/70 hover:bg-black/85 text-white text-[11px] font-semibold px-2 py-1 rounded-full flex items-center gap-1 transition"
+                      >
+                        <PlayCircle className="w-3.5 h-3.5" /> ವಿಡಿಯೋ ನೋಡಿ
+                      </button>
+                    )}
                   </div>
 
                   <span className="text-[11px] font-semibold text-emerald-600 uppercase">
@@ -356,6 +379,43 @@ export default function Home() {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Product Video Modal */}
+      {videoProduct?.video_url && (
+        <div
+          className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
+          onClick={() => setVideoProduct(null)}
+        >
+          <div
+            className="bg-white rounded-xl w-full max-w-2xl overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center px-4 py-3 border-b">
+              <h3 className="font-bold text-sm text-slate-800 line-clamp-1">{videoProduct.name}</h3>
+              <button
+                onClick={() => setVideoProduct(null)}
+                aria-label="ಮುಚ್ಚಿ"
+                className="p-1 rounded-full hover:bg-slate-100 text-slate-500"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="aspect-video bg-black">
+              {videoYouTubeId ? (
+                <iframe
+                  src={`https://www.youtube-nocookie.com/embed/${videoYouTubeId}?autoplay=1&rel=0`}
+                  title={videoProduct.name}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="w-full h-full"
+                />
+              ) : (
+                <video src={videoProduct.video_url} controls autoPlay playsInline className="w-full h-full" />
+              )}
+            </div>
           </div>
         </div>
       )}

@@ -11,6 +11,13 @@ import {
   sessionToken,
 } from "@/lib/adminAuth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import {
+  IMAGE_TYPES,
+  MEDIA_BUCKET,
+  VIDEO_TYPES,
+  getYouTubeId,
+  isOurStorageUrl,
+} from "@/lib/media";
 
 export async function login(prevState, formData) {
   if (!(await checkPassword(formData.get("password")))) {
@@ -58,7 +65,7 @@ export async function resetPassword(prevState, formData) {
 }
 
 // ಪ್ರಾಡಕ್ಟ್ ಸೇರಿಸುವುದು ಸರ್ವರ್‌ನಲ್ಲೇ: ಲಾಗಿನ್ ಆಗಿದ್ದರೆ ಮಾತ್ರ, service role key ಬಳಸಿ
-export async function addProduct({ name, price, description }) {
+export async function addProduct({ name, price, description, imageUrl, videoUrl }) {
   if (!(await isAdmin())) {
     return { error: "ಲಾಗಿನ್ ಅವಧಿ ಮುಗಿದಿದೆ. ಮತ್ತೆ ಲಾಗಿನ್ ಮಾಡಿ." };
   }
@@ -69,18 +76,63 @@ export async function addProduct({ name, price, description }) {
     return { error: "ಸರಿಯಾದ ಹೆಸರು ಮತ್ತು ಬೆಲೆ ನಮೂದಿಸಿ." };
   }
 
+  const cleanImage = typeof imageUrl === "string" ? imageUrl.trim() : "";
+  if (cleanImage && !isOurStorageUrl(cleanImage)) {
+    return { error: "ಫೋಟೋ URL ಸರಿಯಿಲ್ಲ." };
+  }
+  const cleanVideo = typeof videoUrl === "string" ? videoUrl.trim() : "";
+  if (cleanVideo && !isOurStorageUrl(cleanVideo) && !getYouTubeId(cleanVideo)) {
+    return { error: "ವಿಡಿಯೋ: ಸರಿಯಾದ YouTube ಲಿಂಕ್ ಹಾಕಿ ಅಥವಾ ವಿಡಿಯೋ ಫೈಲ್ ಅಪ್‌ಲೋಡ್ ಮಾಡಿ." };
+  }
+
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {
     return { error: "ಸರ್ವರ್‌ನಲ್ಲಿ SUPABASE_SERVICE_ROLE_KEY ಸೆಟ್ ಆಗಿಲ್ಲ." };
   }
 
-  const { error } = await supabaseAdmin.from("products").insert([
-    {
-      name: cleanName,
-      price: cleanPrice,
-      description: typeof description === "string" ? description.trim() : "",
-    },
-  ]);
-  if (error) return { error: error.message };
+  const row = {
+    name: cleanName,
+    price: cleanPrice,
+    description: typeof description === "string" ? description.trim() : "",
+    image_url: cleanImage || null,
+  };
+  // ವಿಡಿಯೋ ಇದ್ದಾಗ ಮಾತ್ರ video_url ಕಳುಹಿಸುವುದು (ಕಾಲಂ ಇಲ್ಲದ ಡೇಟಾಬೇಸ್‌ನಲ್ಲೂ ಫೋಟೋ ಪ್ರಾಡಕ್ಟ್ ಸೇವ್ ಆಗಲಿ)
+  if (cleanVideo) row.video_url = cleanVideo;
+
+  const { error } = await supabaseAdmin.from("products").insert([row]);
+  if (error) {
+    if (error.code === "42703" || error.code === "PGRST204") {
+      return { error: "ಡೇಟಾಬೇಸ್‌ನಲ್ಲಿ video_url ಕಾಲಂ ಇಲ್ಲ. supabase/product-media.sql ರನ್ ಮಾಡಿ." };
+    }
+    return { error: error.message };
+  }
   return { ok: true };
+}
+
+// ಬ್ರೌಸರ್ ನೇರವಾಗಿ Storage ಗೆ ಅಪ್‌ಲೋಡ್ ಮಾಡಲು ಒಂದು ಬಾರಿಯ signed URL (ದೊಡ್ಡ ವಿಡಿಯೋಗಳು ಸರ್ವರ್ ಮೂಲಕ ಹೋಗುವುದಿಲ್ಲ)
+export async function createUploadUrl({ contentType, size }) {
+  if (!(await isAdmin())) {
+    return { error: "ಲಾಗಿನ್ ಅವಧಿ ಮುಗಿದಿದೆ. ಮತ್ತೆ ಲಾಗಿನ್ ಮಾಡಿ." };
+  }
+
+  const kind = IMAGE_TYPES.includes(contentType) ? "images" : VIDEO_TYPES.includes(contentType) ? "videos" : null;
+  if (!kind) {
+    return { error: "ಈ ಫೈಲ್ ಪ್ರಕಾರ ಬೆಂಬಲಿತವಲ್ಲ. JPG/PNG/WebP/GIF ಫೋಟೋ ಅಥವಾ MP4/WebM/MOV ವಿಡಿಯೋ ಬಳಸಿ." };
+  }
+  if (!Number.isFinite(size) || size <= 0 || size > 50 * 1024 * 1024) {
+    return { error: "ಫೈಲ್ ಗಾತ್ರ 50MB ಗಿಂತ ಕಡಿಮೆ ಇರಬೇಕು." };
+  }
+
+  const supabaseAdmin = getSupabaseAdmin();
+  if (!supabaseAdmin) {
+    return { error: "ಸರ್ವರ್‌ನಲ್ಲಿ SUPABASE_SERVICE_ROLE_KEY ಸೆಟ್ ಆಗಿಲ್ಲ." };
+  }
+
+  const ext = contentType.split("/")[1].replace("quicktime", "mov").replace("jpeg", "jpg");
+  const path = `${kind}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+  const { data, error } = await supabaseAdmin.storage.from(MEDIA_BUCKET).createSignedUploadUrl(path);
+  if (error) return { error: error.message };
+
+  const { data: pub } = supabaseAdmin.storage.from(MEDIA_BUCKET).getPublicUrl(path);
+  return { path, token: data.token, publicUrl: pub.publicUrl };
 }
