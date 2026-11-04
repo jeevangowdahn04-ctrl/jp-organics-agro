@@ -1,75 +1,60 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 import { 
   Search, ShoppingCart, Phone, MapPin, 
   Leaf, ShieldCheck, Sprout, Wrench, 
-  Star, Truck, Award, CheckCircle, MessageCircle, X
+  Star, Truck, Award, CheckCircle, MessageCircle, X, Loader2
 } from "lucide-react";
 
 interface Product {
-  id: number;
+  id: number | string;
   name: string;
-  category: string;
   price: number;
-  mrp: number;
-  weight: string;
-  rating: number;
-  tag: string;
+  description?: string;
+  category?: string;
+  mrp?: number;
+  weight?: string;
+  rating?: number;
+  tag?: string;
 }
 
 export default function Home() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const [cart, setCart] = useState<{ product: Product; quantity: number }[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+
+  // Supabase ನಿಂದ ಪ್ರಾಡಕ್ಟ್‌ಗಳನ್ನು ತರುವುದು
+  useEffect(() => {
+    async function fetchProducts() {
+      try {
+        const { data, error } = await supabase
+          .from("products")
+          .select("*")
+          .order("id", { ascending: false });
+
+        if (error) {
+          console.error("Error fetching products:", error);
+        } else if (data) {
+          setProducts(data);
+        }
+      } catch (err) {
+        console.error("Fetch error:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchProducts();
+  }, []);
 
   const categories = [
     { name: "ಸಾವಯವ ಗೊಬ್ಬರಗಳು", icon: Leaf, count: "15+ ಉತ್ಪನ್ನಗಳು" },
     { name: "ಬೆಳೆ ಪೋಷಕಾಂಶಗಳು", icon: Sprout, count: "25+ ಉತ್ಪನ್ನಗಳು" },
     { name: "ಬೆಳೆ ಸಂರಕ್ಷಣೆ", icon: ShieldCheck, count: "30+ ಉತ್ಪನ್ನಗಳು" },
     { name: "ಕೃಷಿ ಪರಿಕರಗಳು", icon: Wrench, count: "10+ ಉತ್ಪನ್ನಗಳು" },
-  ];
-
-  const products: Product[] = [
-    {
-      id: 1,
-      name: "ಹ್ಯೂಮಿಕ್ ಆಸಿಡ್ 98% (Humic Acid Shiny Balls)",
-      category: "ಸಾವಯವ ಪೋಷಕಾಂಶ",
-      price: 850,
-      mrp: 1200,
-      weight: "5 KG",
-      rating: 4.8,
-      tag: "Best Seller"
-    },
-    {
-      id: 2,
-      name: "ಅಡಿಕೆ ಸ್ಪೆಷಲ್ ಮೈಕ್ರೋನ್ಯೂಟ್ರಿಯೆಂಟ್ ಕಿಟ್",
-      category: "ಪೋಷಕಾಂಶ",
-      price: 1450,
-      mrp: 1800,
-      weight: "10 KG",
-      rating: 4.9,
-      tag: "Top Rated"
-    },
-    {
-      id: 3,
-      name: "ತೆಂಗಿನ ಮರಗಳ ವಿಶೇಷ ಬೇರು ಪೋಷಕಾಂಶ (Root Drench)",
-      category: "ಸಾವಯವ ಟಾನಿಕ್",
-      price: 650,
-      mrp: 900,
-      weight: "1 LTR",
-      rating: 4.7,
-      tag: "Offer"
-    },
-    {
-      id: 4,
-      name: "ಅಮೋನಿಯಂ ಸಲ್ಫೇಟ್ + ಮೆಗ್ನೀಸಿಯಮ್ ಬೂಸ್ಟರ್",
-      category: "ಬೆಳವಣಿಗೆ ಪ್ರವರ್ಧಕ",
-      price: 950,
-      mrp: 1300,
-      weight: "25 KG",
-      rating: 4.6,
-      tag: "Popular"
-    }
   ];
 
   const addToCart = (product: Product) => {
@@ -85,18 +70,19 @@ export default function Home() {
     setIsCartOpen(true);
   };
 
-  const removeFromCart = (id: number) => {
+  const removeFromCart = (id: number | string) => {
     setCart(prev => prev.filter(item => item.product.id !== id));
   };
 
-  const totalAmount = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const totalAmount = cart.reduce((sum, item) => sum + Number(item.product.price || 0) * item.quantity, 0);
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const orderOnWhatsApp = () => {
     if (cart.length === 0) return;
     let message = "ನಮಸ್ಕಾರ JP Organics, ನಾನು ಈ ಕೆಳಗಿನ ಉತ್ಪನ್ನಗಳನ್ನು ಆರ್ಡರ್ ಮಾಡಲು ಬಯಸುತ್ತೇನೆ:\n\n";
     cart.forEach((item, index) => {
-      message += `${index + 1}. ${item.product.name} (${item.product.weight}) - ${item.quantity} Nos - ₹${item.product.price * item.quantity}\n`;
+      const weightInfo = item.product.weight ? ` (${item.product.weight})` : "";
+      message += `${index + 1}. ${item.product.name}${weightInfo} - ${item.quantity} Nos - ₹${Number(item.product.price) * item.quantity}\n`;
     });
     message += `\nಒಟ್ಟು ಮೊತ್ತ: ₹${totalAmount}\n`;
     message += `ದಯವಿಟ್ಟು ಡೆಲಿವರಿ ವಿವರಗಳನ್ನು ಕಳುಹಿಸಿ.`;
@@ -243,55 +229,73 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Products */}
+      {/* Dynamic Products from Supabase */}
       <section className="max-w-6xl mx-auto px-4 py-8">
         <h3 className="text-xl font-bold text-slate-800 mb-6">ಜನಪ್ರಿಯ ಉತ್ಪನ್ನಗಳು (Featured Products)</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {products.map((item) => (
-            <div 
-              key={item.id} 
-              className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-lg transition flex flex-col justify-between"
-            >
-              <div className="p-4">
-                <div className="flex justify-between items-start mb-3">
-                  <span className="text-[11px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded">
-                    {item.tag}
-                  </span>
-                  <div className="flex items-center text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
-                    <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400 mr-1" />
-                    {item.rating}
+        
+        {loading ? (
+          <div className="flex items-center justify-center py-12 text-emerald-700 font-semibold gap-2">
+            <Loader2 className="w-6 h-6 animate-spin" /> ಉತ್ಪನ್ನಗಳನ್ನು ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ...
+          </div>
+        ) : products.length === 0 ? (
+          <div className="text-center py-12 bg-white rounded-xl border border-dashed border-slate-300 text-slate-500 text-sm">
+            ಯಾವುದೇ ಉತ್ಪನ್ನಗಳು ಲಭ್ಯವಿಲ್ಲ. ಅಡ್ಮಿನ್ ಪ್ಯಾನೆಲ್ ಮೂಲಕ ಪ್ರಾಡಕ್ಟ್ ಸೇರಿಸಿ.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {products.map((item) => (
+              <div 
+                key={item.id} 
+                className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-lg transition flex flex-col justify-between"
+              >
+                <div className="p-4">
+                  <div className="flex justify-between items-start mb-3">
+                    <span className="text-[11px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded">
+                      {item.tag || "Organic"}
+                    </span>
+                    <div className="flex items-center text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+                      <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400 mr-1" />
+                      {item.rating || 4.8}
+                    </div>
                   </div>
+
+                  <div className="h-32 bg-slate-100 rounded-lg flex items-center justify-center mb-4">
+                    <Sprout className="w-12 h-12 text-emerald-500" />
+                  </div>
+
+                  <span className="text-[11px] font-semibold text-emerald-600 uppercase">
+                    {item.category || "ಕೃಷಿ ಪೋಷಕಾಂಶ"}
+                  </span>
+                  <h4 className="font-bold text-sm text-slate-900 mt-1 line-clamp-2">
+                    {item.name}
+                  </h4>
+                  {item.description && (
+                    <p className="text-xs text-slate-500 mt-1 line-clamp-2">{item.description}</p>
+                  )}
+                  {item.weight && (
+                    <p className="text-xs text-slate-400 mt-1 font-medium">ಪ್ಯಾಕಿಂಗ್: {item.weight}</p>
+                  )}
                 </div>
 
-                <div className="h-32 bg-slate-100 rounded-lg flex items-center justify-center mb-4">
-                  <Sprout className="w-12 h-12 text-emerald-500" />
+                <div className="p-4 pt-0 border-t border-slate-100">
+                  <div className="flex items-baseline gap-2 mt-3 mb-3">
+                    <span className="text-lg font-extrabold text-slate-900">₹{item.price}</span>
+                    {item.mrp && (
+                      <span className="text-xs text-slate-400 line-through">₹{item.mrp}</span>
+                    )}
+                  </div>
+                  <button 
+                    onClick={() => addToCart(item)}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg text-xs flex items-center justify-center gap-1.5 transition"
+                  >
+                    <ShoppingCart className="w-3.5 h-3.5" />
+                    ಕಾರ್ಟ್‌ಗೆ ಸೇರಿಸಿ
+                  </button>
                 </div>
-
-                <span className="text-[11px] font-semibold text-emerald-600 uppercase">
-                  {item.category}
-                </span>
-                <h4 className="font-bold text-sm text-slate-900 mt-1">
-                  {item.name}
-                </h4>
-                <p className="text-xs text-slate-500 mt-1 font-medium">ಪ್ಯಾಕಿಂಗ್: {item.weight}</p>
               </div>
-
-              <div className="p-4 pt-0 border-t border-slate-100">
-                <div className="flex items-baseline gap-2 mt-3 mb-3">
-                  <span className="text-lg font-extrabold text-slate-900">₹{item.price}</span>
-                  <span className="text-xs text-slate-400 line-through">₹{item.mrp}</span>
-                </div>
-                <button
-                  onClick={() => addToCart(item)}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg text-xs flex items-center justify-center gap-1.5 transition"
-                >
-                  <ShoppingCart className="w-3.5 h-3.5" />
-                  ಕಾರ್ಟ್‌ಗೆ ಸೇರಿಸಿ
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Cart Drawer */}
@@ -324,7 +328,7 @@ export default function Home() {
                         <p className="text-xs text-slate-500">₹{item.product.price} × {item.quantity}</p>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="font-bold text-sm text-emerald-700">₹{item.product.price * item.quantity}</span>
+                        <span className="font-bold text-sm text-emerald-700">₹{Number(item.product.price) * item.quantity}</span>
                         <button 
                           onClick={() => removeFromCart(item.product.id)}
                           className="text-red-500 hover:text-red-700 text-xs font-semibold"
