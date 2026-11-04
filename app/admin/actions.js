@@ -2,15 +2,22 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { ADMIN_COOKIE, checkPassword, isAdmin, sessionToken } from "@/lib/adminAuth";
+import {
+  ADMIN_COOKIE,
+  checkPassword,
+  checkRecoveryPin,
+  isAdmin,
+  saveAdminPassword,
+  sessionToken,
+} from "@/lib/adminAuth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function login(prevState, formData) {
-  if (!checkPassword(formData.get("password"))) {
+  if (!(await checkPassword(formData.get("password")))) {
     return { error: "ತಪ್ಪು ಪಾಸ್‌ವರ್ಡ್. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ." };
   }
 
-  (await cookies()).set(ADMIN_COOKIE, sessionToken(), {
+  (await cookies()).set(ADMIN_COOKIE, await sessionToken(), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -23,6 +30,31 @@ export async function login(prevState, formData) {
 export async function logout() {
   (await cookies()).delete({ name: ADMIN_COOKIE, path: "/admin" });
   redirect("/admin");
+}
+
+// RECOVERY_PIN ಸರಿಯಿದ್ದರೆ ಹೊಸ ಅಡ್ಮಿನ್ ಪಾಸ್‌ವರ್ಡ್ ಸೆಟ್ ಮಾಡುವುದು
+export async function resetPassword(prevState, formData) {
+  // ಊಹಿಸಿ ಪ್ರಯತ್ನಿಸುವುದನ್ನು ನಿಧಾನಗೊಳಿಸಲು ಸಣ್ಣ ವಿರಾಮ
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+
+  if (!process.env.RECOVERY_PIN) {
+    return { error: "ಸರ್ವರ್‌ನಲ್ಲಿ RECOVERY_PIN ಸೆಟ್ ಆಗಿಲ್ಲ." };
+  }
+  if (!checkRecoveryPin(formData.get("pin"))) {
+    return { error: "ತಪ್ಪು Recovery PIN." };
+  }
+
+  const newPassword = formData.get("newPassword");
+  if (typeof newPassword !== "string" || newPassword.length < 8) {
+    return { error: "ಹೊಸ ಪಾಸ್‌ವರ್ಡ್ ಕನಿಷ್ಠ 8 ಅಕ್ಷರಗಳಿರಬೇಕು." };
+  }
+  if (newPassword !== formData.get("confirmPassword")) {
+    return { error: "ಎರಡೂ ಪಾಸ್‌ವರ್ಡ್‌ಗಳು ಹೊಂದಾಣಿಕೆಯಾಗುತ್ತಿಲ್ಲ." };
+  }
+
+  const result = await saveAdminPassword(newPassword);
+  if (result.error) return { error: result.error };
+  return { ok: "ಹೊಸ ಪಾಸ್‌ವರ್ಡ್ ಸೆಟ್ ಆಗಿದೆ. ಈಗ ಅದರಿಂದ ಲಾಗಿನ್ ಮಾಡಿ." };
 }
 
 // ಪ್ರಾಡಕ್ಟ್ ಸೇರಿಸುವುದು ಸರ್ವರ್‌ನಲ್ಲೇ: ಲಾಗಿನ್ ಆಗಿದ್ದರೆ ಮಾತ್ರ, service role key ಬಳಸಿ
