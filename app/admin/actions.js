@@ -13,10 +13,13 @@ import {
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import {
   IMAGE_TYPES,
+  MAX_IMAGES,
   MEDIA_BUCKET,
   VIDEO_TYPES,
+  getProductImages,
   getYouTubeId,
   isOurStorageUrl,
+  storagePathFromUrl,
 } from "@/lib/media";
 
 export async function login(prevState, formData) {
@@ -64,48 +67,120 @@ export async function resetPassword(prevState, formData) {
   return { ok: "ಹೊಸ ಪಾಸ್‌ವರ್ಡ್ ಸೆಟ್ ಆಗಿದೆ. ಈಗ ಅದರಿಂದ ಲಾಗಿನ್ ಮಾಡಿ." };
 }
 
-// ಪ್ರಾಡಕ್ಟ್ ಸೇರಿಸುವುದು ಸರ್ವರ್‌ನಲ್ಲೇ: ಲಾಗಿನ್ ಆಗಿದ್ದರೆ ಮಾತ್ರ, service role key ಬಳಸಿ
-export async function addProduct({ name, price, description, imageUrl, videoUrl }) {
-  if (!(await isAdmin())) {
-    return { error: "ಲಾಗಿನ್ ಅವಧಿ ಮುಗಿದಿದೆ. ಮತ್ತೆ ಲಾಗಿನ್ ಮಾಡಿ." };
-  }
+const SESSION_EXPIRED = { error: "ಲಾಗಿನ್ ಅವಧಿ ಮುಗಿದಿದೆ. ಮತ್ತೆ ಲಾಗಿನ್ ಮಾಡಿ." };
+const NO_SERVICE_KEY = { error: "ಸರ್ವರ್‌ನಲ್ಲಿ SUPABASE_SERVICE_ROLE_KEY ಸೆಟ್ ಆಗಿಲ್ಲ." };
 
+// ಫಾರ್ಮ್‌ನಿಂದ ಬಂದ ಮಾಹಿತಿಯನ್ನು ಪರಿಶೀಲಿಸಿ ಡೇಟಾಬೇಸ್ ರೋ ತಯಾರಿಸುವುದು
+function buildProductRow({ name, price, description, imageUrls, videoUrl }) {
   const cleanName = typeof name === "string" ? name.trim() : "";
   const cleanPrice = Number(price);
   if (!cleanName || !Number.isFinite(cleanPrice) || cleanPrice < 0) {
     return { error: "ಸರಿಯಾದ ಹೆಸರು ಮತ್ತು ಬೆಲೆ ನಮೂದಿಸಿ." };
   }
 
-  const cleanImage = typeof imageUrl === "string" ? imageUrl.trim() : "";
-  if (cleanImage && !isOurStorageUrl(cleanImage)) {
+  const images = Array.isArray(imageUrls) ? imageUrls.map((u) => String(u).trim()).filter(Boolean) : [];
+  if (images.length > MAX_IMAGES) {
+    return { error: `ಗರಿಷ್ಠ ${MAX_IMAGES} ಫೋಟೋಗಳನ್ನು ಮಾತ್ರ ಸೇರಿಸಬಹುದು.` };
+  }
+  if (images.some((u) => !isOurStorageUrl(u))) {
     return { error: "ಫೋಟೋ URL ಸರಿಯಿಲ್ಲ." };
   }
+
   const cleanVideo = typeof videoUrl === "string" ? videoUrl.trim() : "";
   if (cleanVideo && !isOurStorageUrl(cleanVideo) && !getYouTubeId(cleanVideo)) {
     return { error: "ವಿಡಿಯೋ: ಸರಿಯಾದ YouTube ಲಿಂಕ್ ಹಾಕಿ ಅಥವಾ ವಿಡಿಯೋ ಫೈಲ್ ಅಪ್‌ಲೋಡ್ ಮಾಡಿ." };
   }
 
-  const supabaseAdmin = getSupabaseAdmin();
-  if (!supabaseAdmin) {
-    return { error: "ಸರ್ವರ್‌ನಲ್ಲಿ SUPABASE_SERVICE_ROLE_KEY ಸೆಟ್ ಆಗಿಲ್ಲ." };
-  }
-
-  const row = {
-    name: cleanName,
-    price: cleanPrice,
-    description: typeof description === "string" ? description.trim() : "",
-    image_url: cleanImage || null,
+  return {
+    row: {
+      name: cleanName,
+      price: cleanPrice,
+      description: typeof description === "string" ? description.trim() : "",
+      image_url: images[0] ?? null,
+      image_urls: images,
+      video_url: cleanVideo || null,
+    },
   };
-  // ವಿಡಿಯೋ ಇದ್ದಾಗ ಮಾತ್ರ video_url ಕಳುಹಿಸುವುದು (ಕಾಲಂ ಇಲ್ಲದ ಡೇಟಾಬೇಸ್‌ನಲ್ಲೂ ಫೋಟೋ ಪ್ರಾಡಕ್ಟ್ ಸೇವ್ ಆಗಲಿ)
-  if (cleanVideo) row.video_url = cleanVideo;
+}
+
+function dbError(error) {
+  if (error.code === "42703" || error.code === "PGRST204") {
+    return { error: "ಡೇಟಾಬೇಸ್‌ನಲ್ಲಿ ಬೇಕಾದ ಕಾಲಂ ಇಲ್ಲ (image_urls / video_url). supabase/product-gallery.sql ರನ್ ಮಾಡಿ." };
+  }
+  return { error: error.message };
+}
+
+// ಪ್ರಾಡಕ್ಟ್‌ನ ಫೋಟೋ/ವಿಡಿಯೋಗಳಲ್ಲಿ ನಮ್ಮ Storage ನಲ್ಲಿರುವ ಫೈಲ್‌ಗಳ ಪಾತ್‌ಗಳು
+function storagePathsOf(product) {
+  return [...getProductImages(product), product?.video_url].map(storagePathFromUrl).filter(Boolean);
+}
+
+async function removeStorageFiles(supabaseAdmin, paths) {
+  if (!paths.length) return;
+  // ಫೈಲ್ ಅಳಿಸುವುದು ವಿಫಲವಾದರೂ ಪ್ರಾಡಕ್ಟ್ ಬದಲಾವಣೆ ನಿಲ್ಲಬಾರದು
+  const { error } = await supabaseAdmin.storage.from(MEDIA_BUCKET).remove(paths);
+  if (error) console.error("Storage cleanup failed:", error.message);
+}
+
+// ಪ್ರಾಡಕ್ಟ್ ಸೇರಿಸುವುದು ಸರ್ವರ್‌ನಲ್ಲೇ: ಲಾಗಿನ್ ಆಗಿದ್ದರೆ ಮಾತ್ರ, service role key ಬಳಸಿ
+export async function addProduct(input) {
+  if (!(await isAdmin())) return SESSION_EXPIRED;
+  const { row, error: invalid } = buildProductRow(input);
+  if (invalid) return { error: invalid };
+
+  const supabaseAdmin = getSupabaseAdmin();
+  if (!supabaseAdmin) return NO_SERVICE_KEY;
 
   const { error } = await supabaseAdmin.from("products").insert([row]);
-  if (error) {
-    if (error.code === "42703" || error.code === "PGRST204") {
-      return { error: "ಡೇಟಾಬೇಸ್‌ನಲ್ಲಿ video_url ಕಾಲಂ ಇಲ್ಲ. supabase/product-media.sql ರನ್ ಮಾಡಿ." };
-    }
-    return { error: error.message };
-  }
+  if (error) return dbError(error);
+  return { ok: true };
+}
+
+// ಪ್ರಾಡಕ್ಟ್ ಎಡಿಟ್: ತೆಗೆದುಹಾಕಿದ ಫೋಟೋ/ವಿಡಿಯೋ ಫೈಲ್‌ಗಳನ್ನು Storage ನಿಂದಲೂ ಅಳಿಸುತ್ತದೆ
+export async function updateProduct(id, input) {
+  if (!(await isAdmin())) return SESSION_EXPIRED;
+  const { row, error: invalid } = buildProductRow(input);
+  if (invalid) return { error: invalid };
+
+  const supabaseAdmin = getSupabaseAdmin();
+  if (!supabaseAdmin) return NO_SERVICE_KEY;
+
+  const { data: existing, error: readError } = await supabaseAdmin.from("products").select("*").eq("id", id).maybeSingle();
+  if (readError) return dbError(readError);
+  if (!existing) return { error: "ಈ ಪ್ರಾಡಕ್ಟ್ ಸಿಗಲಿಲ್ಲ (ಬಹುಶಃ ಈಗಾಗಲೇ ಅಳಿಸಲಾಗಿದೆ)." };
+
+  const { error } = await supabaseAdmin.from("products").update(row).eq("id", id);
+  if (error) return dbError(error);
+
+  const stillUsed = new Set(storagePathsOf(row));
+  await removeStorageFiles(supabaseAdmin, storagePathsOf(existing).filter((p) => !stillUsed.has(p)));
+  return { ok: true };
+}
+
+// ಪ್ರಾಡಕ್ಟ್ ಅಳಿಸುವುದು: ಡೇಟಾಬೇಸ್ ರೋ ಮತ್ತು ಅದರ ಎಲ್ಲಾ ಫೋಟೋ/ವಿಡಿಯೋ ಫೈಲ್‌ಗಳು
+export async function deleteProduct(id) {
+  if (!(await isAdmin())) return SESSION_EXPIRED;
+  const supabaseAdmin = getSupabaseAdmin();
+  if (!supabaseAdmin) return NO_SERVICE_KEY;
+
+  const { data: existing, error: readError } = await supabaseAdmin.from("products").select("*").eq("id", id).maybeSingle();
+  if (readError) return dbError(readError);
+  if (!existing) return { ok: true };
+
+  const { error } = await supabaseAdmin.from("products").delete().eq("id", id);
+  if (error) return dbError(error);
+
+  await removeStorageFiles(supabaseAdmin, storagePathsOf(existing));
+  return { ok: true };
+}
+
+// ಅಪ್‌ಲೋಡ್ ಆದರೂ ಸೇವ್ ಆಗದ ಫೈಲ್‌ಗಳನ್ನು ಅಳಿಸುವುದು (ಉದಾ: ಫಾರ್ಮ್ ಸೇವ್ ವಿಫಲವಾದಾಗ)
+export async function discardUploads(urls) {
+  if (!(await isAdmin())) return SESSION_EXPIRED;
+  const supabaseAdmin = getSupabaseAdmin();
+  if (!supabaseAdmin) return NO_SERVICE_KEY;
+  const paths = (Array.isArray(urls) ? urls : []).map(storagePathFromUrl).filter(Boolean);
+  await removeStorageFiles(supabaseAdmin, paths);
   return { ok: true };
 }
 

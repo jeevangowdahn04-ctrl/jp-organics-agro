@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { getYouTubeId } from "@/lib/media";
+import Link from "next/link";
+import { getProductImages, getYouTubeId } from "@/lib/media";
+import ImageCarousel from "./components/ImageCarousel";
 import {
   Search, ShoppingCart, Phone, MapPin,
   Leaf, ShieldCheck, Sprout, Wrench,
@@ -20,6 +22,7 @@ interface Product {
   rating?: number;
   tag?: string;
   image_url?: string | null;
+  image_urls?: string[] | null;
   video_url?: string | null;
 }
 
@@ -264,22 +267,18 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div className="relative h-40 bg-slate-100 rounded-lg flex items-center justify-center mb-4 overflow-hidden">
-                    {item.image_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={item.image_url}
-                        alt={item.name}
-                        loading="lazy"
-                        className="w-full h-full object-cover"
-                      />
+                  <div className="relative h-44 bg-slate-100 rounded-lg flex items-center justify-center mb-4 overflow-hidden">
+                    {getProductImages(item).length > 0 ? (
+                      <ImageCarousel images={getProductImages(item)} alt={item.name} className="w-full h-full" />
                     ) : (
-                      <Sprout className="w-12 h-12 text-emerald-500" />
+                      <Link href={`/products/${item.id}`} aria-label={item.name} className="w-full h-full flex items-center justify-center">
+                        <Sprout className="w-12 h-12 text-emerald-500" />
+                      </Link>
                     )}
                     {item.video_url && (
                       <button
                         onClick={() => setVideoProduct(item)}
-                        className="absolute bottom-2 right-2 bg-black/70 hover:bg-black/85 text-white text-[11px] font-semibold px-2 py-1 rounded-full flex items-center gap-1 transition"
+                        className="absolute top-2 left-2 bg-black/70 hover:bg-black/85 text-white text-[11px] font-semibold px-2 py-1 rounded-full flex items-center gap-1 transition"
                       >
                         <PlayCircle className="w-3.5 h-3.5" /> ವಿಡಿಯೋ ನೋಡಿ
                       </button>
@@ -290,7 +289,9 @@ export default function Home() {
                     {item.category || "ಕೃಷಿ ಪೋಷಕಾಂಶ"}
                   </span>
                   <h4 className="font-bold text-sm text-slate-900 mt-1 line-clamp-2">
-                    {item.name}
+                    <Link href={`/products/${item.id}`} className="hover:text-emerald-700 hover:underline">
+                      {item.name}
+                    </Link>
                   </h4>
                   {item.description && (
                     <p className="text-xs text-slate-500 mt-1 line-clamp-2">{item.description}</p>
@@ -298,6 +299,12 @@ export default function Home() {
                   {item.weight && (
                     <p className="text-xs text-slate-400 mt-1 font-medium">ಪ್ಯಾಕಿಂಗ್: {item.weight}</p>
                   )}
+                  <Link
+                    href={`/products/${item.id}`}
+                    className="inline-block text-xs font-semibold text-emerald-700 hover:underline mt-2"
+                  >
+                    ಪೂರ್ಣ ವಿವರ ನೋಡಿ →
+                  </Link>
                 </div>
 
                 <div className="p-4 pt-0 border-t border-slate-100">

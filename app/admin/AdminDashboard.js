@@ -1,12 +1,22 @@
 "use client";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
-import { IMAGE_TYPES, MAX_UPLOAD_BYTES, MEDIA_BUCKET, VIDEO_TYPES, getYouTubeId } from "@/lib/media";
-import { addProduct, createUploadUrl, logout } from "./actions";
+import {
+  IMAGE_TYPES,
+  MAX_IMAGES,
+  MAX_UPLOAD_BYTES,
+  MEDIA_BUCKET,
+  VIDEO_TYPES,
+  getProductImages,
+  getYouTubeId,
+  isOurStorageUrl,
+} from "@/lib/media";
+import { addProduct, createUploadUrl, deleteProduct, discardUploads, logout, updateProduct } from "./actions";
 
 const inputStyle = { width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #ccc" };
 const labelStyle = { display: "block", marginBottom: "5px", fontWeight: "bold" };
 const hintStyle = { margin: "4px 0 0 0", fontSize: "12px", color: "#777" };
+const smallButton = { padding: "6px 12px", borderRadius: "4px", cursor: "pointer", fontWeight: "bold", fontSize: "13px" };
 
 async function loadProducts() {
   const { data, error } = await supabase
@@ -27,19 +37,29 @@ async function uploadFile(file) {
   return signed.publicUrl;
 }
 
+let nextKey = 0;
+// ಫೋಟೋ ಪಟ್ಟಿಯ ಒಂದು ಐಟಂ: ಈಗಾಗಲೇ ಸೇವ್ ಆಗಿರುವ URL ಅಥವಾ ಹೊಸದಾಗಿ ಆಯ್ಕೆ ಮಾಡಿದ ಫೈಲ್
+const fromUrl = (url) => ({ key: `k${nextKey++}`, url, preview: url });
+const fromFile = (file) => ({ key: `k${nextKey++}`, file, preview: URL.createObjectURL(file) });
+const releasePreview = (img) => img.file && URL.revokeObjectURL(img.preview);
+
 export default function AdminDashboard() {
   const [products, setProducts] = useState([]);
+  const [editingId, setEditingId] = useState(null);
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
-  const [imageFile, setImageFile] = useState(null);
+  const [images, setImages] = useState([]);
   const [videoMode, setVideoMode] = useState("youtube");
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [videoFile, setVideoFile] = useState(null);
+  const [existingVideo, setExistingVideo] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
   const imageInputRef = useRef(null);
   const videoInputRef = useRef(null);
+  const formRef = useRef(null);
 
   const refreshProducts = async () => {
     const data = await loadProducts();
@@ -57,37 +77,112 @@ export default function AdminDashboard() {
     };
   }, []);
 
-  const imagePreview = useMemo(() => (imageFile ? URL.createObjectURL(imageFile) : null), [imageFile]);
-  useEffect(() => () => imagePreview && URL.revokeObjectURL(imagePreview), [imagePreview]);
+  const addImageFiles = (e) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    const accepted = [];
+    for (const file of files) {
+      if (!IMAGE_TYPES.includes(file.type)) {
+        alert(`${file.name}: ಈ ಫೈಲ್ ಪ್ರಕಾರ ಬೆಂಬಲಿತವಲ್ಲ.`);
+      } else if (file.size > MAX_UPLOAD_BYTES) {
+        alert(`${file.name}: ಫೈಲ್ ಗಾತ್ರ 50MB ಗಿಂತ ಕಡಿಮೆ ಇರಬೇಕು.`);
+      } else {
+        accepted.push(file);
+      }
+    }
+    const room = MAX_IMAGES - images.length;
+    if (accepted.length > room) {
+      alert(`ಗರಿಷ್ಠ ${MAX_IMAGES} ಫೋಟೋಗಳು ಮಾತ್ರ. ಮೊದಲ ${Math.max(room, 0)} ಫೋಟೋಗಳನ್ನು ಸೇರಿಸಲಾಗಿದೆ.`);
+    }
+    if (room > 0) setImages((prev) => [...prev, ...accepted.slice(0, room).map(fromFile)]);
+  };
 
-  const pickFile = (e, allowed, setter) => {
+  const removeImage = (key) => {
+    setImages((prev) => {
+      const target = prev.find((img) => img.key === key);
+      if (target) releasePreview(target);
+      return prev.filter((img) => img.key !== key);
+    });
+  };
+
+  // ಫೋಟೋ ಕ್ರಮ ಬದಲಿಸುವುದು (ಮೊದಲ ಫೋಟೋ = ಮುಖ್ಯ/cover ಫೋಟೋ)
+  const moveImage = (key, dir) => {
+    setImages((prev) => {
+      const i = prev.findIndex((img) => img.key === key);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= prev.length) return prev;
+      const next = [...prev];
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
+  };
+
+  const pickVideo = (e) => {
     const file = e.target.files?.[0] ?? null;
-    if (file && !allowed.includes(file.type)) {
+    if (file && !VIDEO_TYPES.includes(file.type)) {
       alert("ಈ ಫೈಲ್ ಪ್ರಕಾರ ಬೆಂಬಲಿತವಲ್ಲ.");
       e.target.value = "";
-      return setter(null);
+      return setVideoFile(null);
     }
     if (file && file.size > MAX_UPLOAD_BYTES) {
       alert("ಫೈಲ್ ಗಾತ್ರ 50MB ಗಿಂತ ಕಡಿಮೆ ಇರಬೇಕು.");
       e.target.value = "";
-      return setter(null);
+      return setVideoFile(null);
     }
-    setter(file);
+    setVideoFile(file);
   };
 
   const resetForm = () => {
+    images.forEach(releasePreview);
+    setEditingId(null);
     setName("");
     setPrice("");
     setDescription("");
-    setImageFile(null);
+    setImages([]);
+    setVideoMode("youtube");
     setYoutubeUrl("");
     setVideoFile(null);
+    setExistingVideo("");
     if (imageInputRef.current) imageInputRef.current.value = "";
     if (videoInputRef.current) videoInputRef.current.value = "";
   };
 
-  // ಹೊಸ ಪ್ರಾಡಕ್ಟ್ ಸೇರಿಸುವುದು
-  const handleAddProduct = async (e) => {
+  const startEdit = (p) => {
+    images.forEach(releasePreview);
+    setEditingId(p.id);
+    setName(p.name ?? "");
+    setPrice(p.price ?? "");
+    setDescription(p.description ?? "");
+    setImages(getProductImages(p).map(fromUrl));
+    setVideoFile(null);
+    if (videoInputRef.current) videoInputRef.current.value = "";
+    if (p.video_url && isOurStorageUrl(p.video_url)) {
+      setVideoMode("upload");
+      setExistingVideo(p.video_url);
+      setYoutubeUrl("");
+    } else {
+      setVideoMode("youtube");
+      setExistingVideo("");
+      setYoutubeUrl(p.video_url ?? "");
+    }
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const handleDelete = async (p) => {
+    const ok = window.confirm(
+      `"${p.name}" ಪ್ರಾಡಕ್ಟ್ ಅನ್ನು ಶಾಶ್ವತವಾಗಿ ಅಳಿಸಬೇಕೆ?\n\nಇದರ ಎಲ್ಲಾ ಫೋಟೋಗಳು ಮತ್ತು ಅಪ್‌ಲೋಡ್ ಮಾಡಿದ ವಿಡಿಯೋ ಕೂಡ ಅಳಿಸಲ್ಪಡುತ್ತವೆ. ಇದನ್ನು ಹಿಂಪಡೆಯಲು ಸಾಧ್ಯವಿಲ್ಲ.`
+    );
+    if (!ok) return;
+    setDeletingId(p.id);
+    const { error } = await deleteProduct(p.id);
+    setDeletingId(null);
+    if (error) return alert("Error: " + error);
+    if (editingId === p.id) resetForm();
+    refreshProducts();
+  };
+
+  // ಹೊಸ ಪ್ರಾಡಕ್ಟ್ ಸೇರಿಸುವುದು ಅಥವಾ ಎಡಿಟ್ ಮಾಡಿದ್ದನ್ನು ಸೇವ್ ಮಾಡುವುದು
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (videoMode === "youtube" && youtubeUrl.trim() && !getYouTubeId(youtubeUrl)) {
       alert("ಸರಿಯಾದ YouTube ಲಿಂಕ್ ಹಾಕಿ.");
@@ -95,11 +190,20 @@ export default function AdminDashboard() {
     }
 
     setLoading(true);
+    const uploaded = [];
     try {
-      let imageUrl = "";
-      if (imageFile) {
-        setStatus("ಫೋಟೋ ಅಪ್‌ಲೋಡ್ ಆಗುತ್ತಿದೆ...");
-        imageUrl = await uploadFile(imageFile);
+      const newFiles = images.filter((img) => img.file);
+      const imageUrls = [];
+      let done = 0;
+      for (const img of images) {
+        if (img.file) {
+          setStatus(`ಫೋಟೋ ಅಪ್‌ಲೋಡ್ ಆಗುತ್ತಿದೆ... (${++done}/${newFiles.length})`);
+          const url = await uploadFile(img.file);
+          uploaded.push(url);
+          imageUrls.push(url);
+        } else {
+          imageUrls.push(img.url);
+        }
       }
 
       let videoUrl = "";
@@ -108,16 +212,22 @@ export default function AdminDashboard() {
       } else if (videoFile) {
         setStatus("ವಿಡಿಯೋ ಅಪ್‌ಲೋಡ್ ಆಗುತ್ತಿದೆ... (ದೊಡ್ಡ ಫೈಲ್‌ಗೆ ಸ್ವಲ್ಪ ಸಮಯ ಬೇಕು)");
         videoUrl = await uploadFile(videoFile);
+        uploaded.push(videoUrl);
+      } else {
+        videoUrl = existingVideo;
       }
 
       setStatus("ಪ್ರಾಡಕ್ಟ್ ಸೇವ್ ಆಗುತ್ತಿದೆ...");
-      const { error } = await addProduct({ name, price, description, imageUrl, videoUrl });
+      const payload = { name, price, description, imageUrls, videoUrl };
+      const { error } = editingId ? await updateProduct(editingId, payload) : await addProduct(payload);
       if (error) throw new Error(error);
 
-      alert("ಪ್ರಾಡಕ್ಟ್ ಯಶಸ್ವಿಯಾಗಿ ಸೇವ್ ಆಗಿದೆ!");
+      alert(editingId ? "ಪ್ರಾಡಕ್ಟ್ ಅಪ್‌ಡೇಟ್ ಆಗಿದೆ!" : "ಪ್ರಾಡಕ್ಟ್ ಯಶಸ್ವಿಯಾಗಿ ಸೇವ್ ಆಗಿದೆ!");
       resetForm();
       refreshProducts();
     } catch (err) {
+      // ಸೇವ್ ವಿಫಲವಾದರೆ ಈಗಷ್ಟೇ ಅಪ್‌ಲೋಡ್ ಆದ ಫೈಲ್‌ಗಳನ್ನು Storage ನಲ್ಲಿ ಉಳಿಸಬಾರದು
+      if (uploaded.length) await discardUploads(uploaded);
       alert("Error: " + err.message);
     } finally {
       setStatus("");
@@ -140,8 +250,13 @@ export default function AdminDashboard() {
         </form>
       </div>
 
-      <form onSubmit={handleAddProduct} style={{ background: "#f9f9f9", padding: "20px", borderRadius: "8px", marginTop: "20px" }}>
-        <h3>ಹೊಸ ಪ್ರಾಡಕ್ಟ್ ಸೇರಿಸಿ (Add Product)</h3>
+      <form
+        ref={formRef}
+        onSubmit={handleSubmit}
+        style={{ background: editingId ? "#fff8e1" : "#f9f9f9", border: editingId ? "1px solid #ffe082" : "none", padding: "20px", borderRadius: "8px", marginTop: "20px", scrollMarginTop: "20px" }}>
+        <h3 style={{ marginTop: 0 }}>
+          {editingId ? `ಪ್ರಾಡಕ್ಟ್ ಎಡಿಟ್ ಮಾಡಿ (Edit Product #${editingId})` : "ಹೊಸ ಪ್ರಾಡಕ್ಟ್ ಸೇರಿಸಿ (Add Product)"}
+        </h3>
         <div style={{ marginBottom: "12px" }}>
           <label style={labelStyle}>ಪ್ರಾಡಕ್ಟ್ ಹೆಸರು:</label>
           <input
@@ -176,18 +291,48 @@ export default function AdminDashboard() {
         </div>
 
         <div style={{ marginBottom: "12px" }}>
-          <label htmlFor="productImage" style={labelStyle}>ಪ್ರಾಡಕ್ಟ್ ಫೋಟೋ (Image):</label>
+          <label htmlFor="productImages" style={labelStyle}>
+            ಪ್ರಾಡಕ್ಟ್ ಫೋಟೋಗಳು (Images) — {images.length}/{MAX_IMAGES}
+          </label>
           <input
-            id="productImage"
+            id="productImages"
             ref={imageInputRef}
             type="file"
+            multiple
             accept={IMAGE_TYPES.join(",")}
-            onChange={(e) => pickFile(e, IMAGE_TYPES, setImageFile)}
+            onChange={addImageFiles}
+            disabled={images.length >= MAX_IMAGES}
           />
-          <p style={hintStyle}>JPG / PNG / WebP / GIF, ಗರಿಷ್ಠ 50MB</p>
-          {imagePreview && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={imagePreview} alt="ಫೋಟೋ ಮುನ್ನೋಟ" style={{ marginTop: "8px", maxHeight: "140px", borderRadius: "6px", border: "1px solid #ddd" }} />
+          <p style={hintStyle}>ಒಮ್ಮೆಗೆ ಹಲವು ಫೋಟೋ ಆಯ್ಕೆ ಮಾಡಬಹುದು. ಮೊದಲ ಫೋಟೋ ಮುಖ್ಯ (cover) ಫೋಟೋ. JPG / PNG / WebP / GIF, ಪ್ರತಿ ಫೋಟೋ ಗರಿಷ್ಠ 50MB</p>
+          {images.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "10px" }}>
+              {images.map((img, i) => (
+                <div key={img.key} style={{ position: "relative", width: "96px" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={img.preview}
+                    alt={`ಫೋಟೋ ${i + 1}`}
+                    style={{ width: "96px", height: "96px", objectFit: "cover", borderRadius: "6px", border: i === 0 ? "2px solid #2e7d32" : "1px solid #ddd" }}
+                  />
+                  {i === 0 && (
+                    <span style={{ position: "absolute", top: "4px", left: "4px", background: "#2e7d32", color: "white", fontSize: "10px", padding: "1px 5px", borderRadius: "8px" }}>
+                      Cover
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => removeImage(img.key)}
+                    aria-label={`ಫೋಟೋ ${i + 1} ತೆಗೆದುಹಾಕಿ`}
+                    style={{ position: "absolute", top: "4px", right: "4px", width: "22px", height: "22px", borderRadius: "50%", border: "none", background: "rgba(0,0,0,0.65)", color: "white", cursor: "pointer", fontSize: "13px", lineHeight: "22px", padding: 0 }}>
+                    ×
+                  </button>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: "2px" }}>
+                    <button type="button" onClick={() => moveImage(img.key, -1)} disabled={i === 0} aria-label="ಎಡಕ್ಕೆ ಸರಿಸಿ" style={{ border: "1px solid #ccc", background: "white", borderRadius: "4px", cursor: "pointer", fontSize: "11px", padding: "1px 8px" }}>◀</button>
+                    <button type="button" onClick={() => moveImage(img.key, 1)} disabled={i === images.length - 1} aria-label="ಬಲಕ್ಕೆ ಸರಿಸಿ" style={{ border: "1px solid #ccc", background: "white", borderRadius: "4px", cursor: "pointer", fontSize: "11px", padding: "1px 8px" }}>▶</button>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
 
@@ -209,52 +354,92 @@ export default function AdminDashboard() {
               aria-label="YouTube ಲಿಂಕ್"
               value={youtubeUrl}
               onChange={(e) => setYoutubeUrl(e.target.value)}
-              placeholder="https://www.youtube.com/watch?v=..."
+              placeholder="https://www.youtube.com/watch?v=... (ಖಾಲಿ ಬಿಟ್ಟರೆ ವಿಡಿಯೋ ಇಲ್ಲ)"
               style={inputStyle}
             />
           ) : (
             <>
+              {existingVideo && !videoFile && (
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px", fontSize: "13px" }}>
+                  <video src={existingVideo} style={{ width: "160px", borderRadius: "6px", background: "#000" }} controls preload="metadata" />
+                  <button type="button" onClick={() => setExistingVideo("")} style={{ ...smallButton, background: "white", color: "#c62828", border: "1px solid #c62828" }}>
+                    ವಿಡಿಯೋ ತೆಗೆದುಹಾಕಿ
+                  </button>
+                </div>
+              )}
               <input
                 ref={videoInputRef}
                 type="file"
                 aria-label="ವಿಡಿಯೋ ಫೈಲ್"
                 accept={VIDEO_TYPES.join(",")}
-                onChange={(e) => pickFile(e, VIDEO_TYPES, setVideoFile)}
+                onChange={pickVideo}
               />
-              <p style={hintStyle}>MP4 / WebM / MOV, ಗರಿಷ್ಠ 50MB</p>
+              <p style={hintStyle}>
+                MP4 / WebM / MOV, ಗರಿಷ್ಠ 50MB{existingVideo ? " — ಹೊಸ ಫೈಲ್ ಆಯ್ಕೆ ಮಾಡಿದರೆ ಹಳೆಯ ವಿಡಿಯೋ ಬದಲಾಗುತ್ತದೆ" : ""}
+              </p>
             </>
           )}
         </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          style={{ background: "#2e7d32", color: "white", padding: "10px 20px", border: "none", borderRadius: "4px", cursor: "pointer", fontWeight: "bold" }}>
-          {loading ? "ಸೇವ್ ಆಗುತ್ತಿದೆ..." : "ಪ್ರಾಡಕ್ಟ್ ಸೇರಿಸಿ"}
-        </button>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          <button
+            type="submit"
+            disabled={loading}
+            style={{ background: "#2e7d32", color: "white", padding: "10px 20px", border: "none", borderRadius: "4px", cursor: "pointer", fontWeight: "bold" }}>
+            {loading ? "ಸೇವ್ ಆಗುತ್ತಿದೆ..." : editingId ? "ಬದಲಾವಣೆ ಸೇವ್ ಮಾಡಿ" : "ಪ್ರಾಡಕ್ಟ್ ಸೇರಿಸಿ"}
+          </button>
+          {editingId && (
+            <button type="button" onClick={resetForm} disabled={loading} style={{ ...smallButton, padding: "10px 16px", background: "white", color: "#555", border: "1px solid #bbb" }}>
+              ರದ್ದುಮಾಡಿ
+            </button>
+          )}
+        </div>
         {status && <p style={{ margin: "10px 0 0 0", color: "#2e7d32", fontSize: "14px" }}>{status}</p>}
       </form>
 
-      <h3 style={{ marginTop: "30px" }}>ಹಾಲಿ ಇರುವ ಪ್ರಾಡಕ್ಟ್‌ಗಳು</h3>
+      <h3 style={{ marginTop: "30px" }}>ಹಾಲಿ ಇರುವ ಪ್ರಾಡಕ್ಟ್‌ಗಳು ({products.length})</h3>
       <div style={{ marginTop: "10px" }}>
         {products.length === 0 ? (
           <p style={{ color: "#777" }}>ಯಾವುದೇ ಪ್ರಾಡಕ್ಟ್‌ಗಳು ಇಲ್ಲ.</p>
         ) : (
-          products.map((p) => (
-            <div key={p.id} style={{ display: "flex", gap: "12px", alignItems: "center", border: "1px solid #ddd", padding: "12px", borderRadius: "6px", marginBottom: "10px", background: "#fff" }}>
-              {p.image_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={p.image_url} alt={p.name} style={{ width: "64px", height: "64px", objectFit: "cover", borderRadius: "4px", flexShrink: 0 }} />
-              ) : (
-                <div style={{ width: "64px", height: "64px", background: "#f0f0f0", borderRadius: "4px", flexShrink: 0 }} />
-              )}
-              <div>
-                <h4 style={{ margin: "0 0 5px 0", color: "#333" }}>{p.name} - ₹{p.price}</h4>
-                <p style={{ margin: 0, color: "#666" }}>{p.description}</p>
-                {p.video_url && <p style={{ margin: "4px 0 0 0", fontSize: "12px", color: "#2e7d32" }}>▶ ವಿಡಿಯೋ ಇದೆ</p>}
+          products.map((p) => {
+            const photos = getProductImages(p);
+            return (
+              <div
+                key={p.id}
+                style={{ display: "flex", gap: "12px", alignItems: "center", border: editingId === p.id ? "2px solid #ffb300" : "1px solid #ddd", padding: "12px", borderRadius: "6px", marginBottom: "10px", background: "#fff" }}>
+                {photos[0] ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={photos[0]} alt={p.name} style={{ width: "64px", height: "64px", objectFit: "cover", borderRadius: "4px", flexShrink: 0 }} />
+                ) : (
+                  <div style={{ width: "64px", height: "64px", background: "#f0f0f0", borderRadius: "4px", flexShrink: 0 }} />
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h4 style={{ margin: "0 0 5px 0", color: "#333" }}>{p.name} - ₹{p.price}</h4>
+                  <p style={{ margin: 0, color: "#666", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.description}</p>
+                  <p style={{ margin: "4px 0 0 0", fontSize: "12px", color: "#2e7d32" }}>
+                    📷 {photos.length} ಫೋಟೋ{p.video_url ? " · ▶ ವಿಡಿಯೋ ಇದೆ" : ""}
+                  </p>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px", flexShrink: 0 }}>
+                  <button
+                    type="button"
+                    onClick={() => startEdit(p)}
+                    disabled={loading}
+                    style={{ ...smallButton, background: "white", color: "#2e7d32", border: "1px solid #2e7d32" }}>
+                    ✏️ Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(p)}
+                    disabled={deletingId === p.id || loading}
+                    style={{ ...smallButton, background: "#c62828", color: "white", border: "none" }}>
+                    {deletingId === p.id ? "ಅಳಿಸುತ್ತಿದೆ..." : "🗑️ Delete"}
+                  </button>
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>
