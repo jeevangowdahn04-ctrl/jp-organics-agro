@@ -11,6 +11,7 @@ import {
   getYouTubeId,
   isOurStorageUrl,
 } from "@/lib/media";
+import { discountPercent, highlightLines, isInStock } from "@/lib/pricing";
 import { addProduct, createUploadUrl, deleteProduct, discardUploads, logout, updateProduct } from "./actions";
 
 const inputStyle = { width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #ccc" };
@@ -48,6 +49,11 @@ export default function AdminDashboard() {
   const [editingId, setEditingId] = useState(null);
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
+  const [mrp, setMrp] = useState("");
+  const [category, setCategory] = useState("");
+  const [weight, setWeight] = useState("");
+  const [inStock, setInStock] = useState(true);
+  const [highlights, setHighlights] = useState("");
   const [description, setDescription] = useState("");
   const [images, setImages] = useState([]);
   const [videoMode, setVideoMode] = useState("youtube");
@@ -137,6 +143,11 @@ export default function AdminDashboard() {
     setEditingId(null);
     setName("");
     setPrice("");
+    setMrp("");
+    setCategory("");
+    setWeight("");
+    setInStock(true);
+    setHighlights("");
     setDescription("");
     setImages([]);
     setVideoMode("youtube");
@@ -152,6 +163,11 @@ export default function AdminDashboard() {
     setEditingId(p.id);
     setName(p.name ?? "");
     setPrice(p.price ?? "");
+    setMrp(p.mrp ?? "");
+    setCategory(p.category ?? "");
+    setWeight(p.weight ?? "");
+    setInStock(isInStock(p));
+    setHighlights(highlightLines(p.highlights).join("\n"));
     setDescription(p.description ?? "");
     setImages(getProductImages(p).map(fromUrl));
     setVideoFile(null);
@@ -188,6 +204,10 @@ export default function AdminDashboard() {
       alert("ಸರಿಯಾದ YouTube ಲಿಂಕ್ ಹಾಕಿ.");
       return;
     }
+    if (mrp !== "" && Number(mrp) < Number(price)) {
+      alert("MRP (ಮೂಲ ಬೆಲೆ) ಆಫರ್ ಬೆಲೆಗಿಂತ ಕಡಿಮೆ ಇರಬಾರದು.");
+      return;
+    }
 
     setLoading(true);
     const uploaded = [];
@@ -218,7 +238,7 @@ export default function AdminDashboard() {
       }
 
       setStatus("ಪ್ರಾಡಕ್ಟ್ ಸೇವ್ ಆಗುತ್ತಿದೆ...");
-      const payload = { name, price, description, imageUrls, videoUrl };
+      const payload = { name, price, mrp, category, weight, inStock, highlights, description, imageUrls, videoUrl };
       const { error } = editingId ? await updateProduct(editingId, payload) : await addProduct(payload);
       if (error) throw new Error(error);
 
@@ -268,24 +288,110 @@ export default function AdminDashboard() {
             style={inputStyle}
           />
         </div>
+        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginBottom: "12px" }}>
+          <div style={{ flex: "1 1 200px" }}>
+            <label htmlFor="productCategory" style={labelStyle}>ವರ್ಗ (Category):</label>
+            <input
+              id="productCategory"
+              type="text"
+              list="categoryOptions"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              placeholder="ಉದಾ: ಬೆಳೆ ಪೋಷಕಾಂಶಗಳು"
+              style={inputStyle}
+            />
+            <datalist id="categoryOptions">
+              {[...new Set(["ಸಾವಯವ ಗೊಬ್ಬರಗಳು", "ಬೆಳೆ ಪೋಷಕಾಂಶಗಳು", "ಬೆಳೆ ಸಂರಕ್ಷಣೆ", "ಕೃಷಿ ಪರಿಕರಗಳು", ...products.map((p) => p.category).filter(Boolean)])].map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
+          </div>
+          <div style={{ flex: "1 1 160px" }}>
+            <label htmlFor="productWeight" style={labelStyle}>ಪ್ಯಾಕಿಂಗ್ (Packing):</label>
+            <input
+              id="productWeight"
+              type="text"
+              value={weight}
+              onChange={(e) => setWeight(e.target.value)}
+              placeholder="ಉದಾ: 1 Litre / 5 Kg"
+              style={inputStyle}
+            />
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginBottom: "6px" }}>
+          <div style={{ flex: "1 1 160px" }}>
+            <label htmlFor="productMrp" style={labelStyle}>ಮೂಲ ಬೆಲೆ / MRP (₹):</label>
+            <input
+              id="productMrp"
+              type="number"
+              min="0"
+              step="0.01"
+              value={mrp}
+              onChange={(e) => setMrp(e.target.value)}
+              placeholder="ಉದಾ: 800 (ಐಚ್ಛಿಕ)"
+              style={inputStyle}
+            />
+          </div>
+          <div style={{ flex: "1 1 160px" }}>
+            <label htmlFor="productPrice" style={labelStyle}>ಆಫರ್ / ಮಾರಾಟ ಬೆಲೆ (₹):</label>
+            <input
+              id="productPrice"
+              type="number"
+              min="0"
+              step="0.01"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              required
+              placeholder="ಉದಾ: 600"
+              style={inputStyle}
+            />
+          </div>
+          <div style={{ flex: "1 1 160px" }}>
+            <label htmlFor="productStock" style={labelStyle}>ಸ್ಟಾಕ್ ಸ್ಥಿತಿ:</label>
+            <select
+              id="productStock"
+              value={inStock ? "in" : "out"}
+              onChange={(e) => setInStock(e.target.value === "in")}
+              style={{ ...inputStyle, background: inStock ? "#e8f5e9" : "#ffebee", fontWeight: "bold", color: inStock ? "#2e7d32" : "#c62828" }}>
+              <option value="in">✅ In Stock</option>
+              <option value="out">⛔ Out of Stock</option>
+            </select>
+          </div>
+        </div>
+        <p style={{ ...hintStyle, marginBottom: "12px", fontSize: "13px" }}>
+          {mrp !== "" && price !== "" && Number(mrp) < Number(price) ? (
+            <span style={{ color: "#c62828", fontWeight: "bold" }}>⚠ MRP ಆಫರ್ ಬೆಲೆಗಿಂತ ಕಡಿಮೆ ಇರಬಾರದು.</span>
+          ) : discountPercent(price, mrp) > 0 ? (
+            <span>
+              ಗ್ರಾಹಕರಿಗೆ ಕಾಣುವುದು: <b style={{ fontSize: "15px", color: "#111" }}>₹{price}</b>{" "}
+              <s>₹{mrp}</s>{" "}
+              <b style={{ background: "#c62828", color: "white", padding: "1px 6px", borderRadius: "4px" }}>{discountPercent(price, mrp)}% OFF</b>
+            </span>
+          ) : (
+            "MRP ಹಾಕಿದರೆ ರಿಯಾಯಿತಿ (% OFF) ತಾನಾಗೇ ಲೆಕ್ಕವಾಗಿ ಕಾಣಿಸುತ್ತದೆ."
+          )}
+        </p>
         <div style={{ marginBottom: "12px" }}>
-          <label style={labelStyle}>ಬೆಲೆ (₹):</label>
-          <input
-            type="number"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-            required
-            placeholder="ಉದಾ: 450"
+          <label htmlFor="productHighlights" style={labelStyle}>ಪ್ರಮುಖ ಅಂಶಗಳು (Key Highlights):</label>
+          <textarea
+            id="productHighlights"
+            value={highlights}
+            onChange={(e) => setHighlights(e.target.value)}
+            rows="4"
+            placeholder={"ಪ್ರತಿ ಸಾಲು ಒಂದು ಅಂಶ, ಉದಾ:\nತೆಂಗು, ಅಡಿಕೆ ಬೆಳೆಗಳಿಗೆ ಸೂಕ್ತ\nಬೇರಿನ ಬೆಳವಣಿಗೆ ಹೆಚ್ಚಿಸುತ್ತದೆ\nಬಳಕೆ: 1 ಲೀಟರ್ ನೀರಿಗೆ 2 ml"}
             style={inputStyle}
           />
+          <p style={hintStyle}>ಪ್ರಾಡಕ್ಟ್ ಪುಟದ &quot;About this item&quot; ನಲ್ಲಿ ಬುಲೆಟ್ ಪಾಯಿಂಟ್‌ಗಳಾಗಿ ಕಾಣಿಸುತ್ತದೆ.</p>
         </div>
         <div style={{ marginBottom: "12px" }}>
-          <label style={labelStyle}>ವಿವರಣೆ (Description):</label>
+          <label htmlFor="productDescription" style={labelStyle}>ವಿವರಣೆ (Description):</label>
           <textarea
+            id="productDescription"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            rows="3"
-            placeholder="ಪ್ರಾಡಕ್ಟ್ ವಿವರಣೆ..."
+            rows="4"
+            placeholder="ಪ್ರಾಡಕ್ಟ್ ವಿವರಣೆ, ಬಳಕೆಯ ವಿಧಾನ, ಘಟಕಾಂಶಗಳು..."
             style={inputStyle}
           />
         </div>
@@ -386,7 +492,7 @@ export default function AdminDashboard() {
             type="submit"
             disabled={loading}
             style={{ background: "#2e7d32", color: "white", padding: "10px 20px", border: "none", borderRadius: "4px", cursor: "pointer", fontWeight: "bold" }}>
-            {loading ? "ಸೇವ್ ಆಗುತ್ತಿದೆ..." : editingId ? "ಬದಲಾವಣೆ ಸೇವ್ ಮಾಡಿ" : "ಪ್ರಾಡಕ್ಟ್ ಸೇರಿಸಿ"}
+            {loading ? "ಸೇವ್ ಆಗುತ್ತಿದೆ..." : editingId ? "Update Product" : "ಪ್ರಾಡಕ್ಟ್ ಸೇರಿಸಿ"}
           </button>
           {editingId && (
             <button type="button" onClick={resetForm} disabled={loading} style={{ ...smallButton, padding: "10px 16px", background: "white", color: "#555", border: "1px solid #bbb" }}>
@@ -415,7 +521,21 @@ export default function AdminDashboard() {
                   <div style={{ width: "64px", height: "64px", background: "#f0f0f0", borderRadius: "4px", flexShrink: 0 }} />
                 )}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <h4 style={{ margin: "0 0 5px 0", color: "#333" }}>{p.name} - ₹{p.price}</h4>
+                  <h4 style={{ margin: "0 0 3px 0", color: "#333" }}>{p.name}</h4>
+                  <p style={{ margin: "0 0 4px 0", fontSize: "13px" }}>
+                    <b>₹{p.price}</b>
+                    {discountPercent(p.price, p.mrp) > 0 && (
+                      <>
+                        {" "}<s style={{ color: "#888" }}>₹{p.mrp}</s>{" "}
+                        <span style={{ color: "#c62828", fontWeight: "bold" }}>{discountPercent(p.price, p.mrp)}% OFF</span>
+                      </>
+                    )}
+                    {" · "}
+                    <span style={{ color: isInStock(p) ? "#2e7d32" : "#c62828", fontWeight: "bold" }}>
+                      {isInStock(p) ? "In Stock" : "Out of Stock"}
+                    </span>
+                    {p.category ? <span style={{ color: "#777" }}> · {p.category}</span> : null}
+                  </p>
                   <p style={{ margin: 0, color: "#666", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.description}</p>
                   <p style={{ margin: "4px 0 0 0", fontSize: "12px", color: "#2e7d32" }}>
                     📷 {photos.length} ಫೋಟೋ{p.video_url ? " · ▶ ವಿಡಿಯೋ ಇದೆ" : ""}

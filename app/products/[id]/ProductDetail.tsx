@@ -6,6 +6,7 @@ import { ArrowLeft, CheckCircle2, Loader2, MapPin, Minus, Phone, Plus, ShieldChe
 import { supabase } from "@/lib/supabase";
 import { getProductImages, getYouTubeId } from "@/lib/media";
 import { formatRupees, whatsappOrderUrl } from "@/lib/whatsapp";
+import { discountPercent, highlightLines, isInStock } from "@/lib/pricing";
 import ImageCarousel from "../../components/ImageCarousel";
 import CartButton from "../../components/cart/CartButton";
 import ShareButton from "../../components/ShareButton";
@@ -21,6 +22,8 @@ interface Product {
   weight?: string;
   tag?: string;
   rating?: number | null;
+  in_stock?: boolean | null;
+  highlights?: string | null;
   image_url?: string | null;
   image_urls?: string[] | null;
   video_url?: string | null;
@@ -57,8 +60,7 @@ function Stars({ rating }: { rating: number }) {
   );
 }
 
-const discountOf = (p: Product) =>
-  p.mrp && Number(p.mrp) > Number(p.price) ? Math.round((1 - Number(p.price) / Number(p.mrp)) * 100) : 0;
+const discountOf = (p: Product) => discountPercent(p.price, p.mrp);
 
 export default function ProductDetail({ id }: { id: string }) {
   const [state, setState] = useState<LoadState>({ status: "loading" });
@@ -115,6 +117,8 @@ export default function ProductDetail({ id }: { id: string }) {
   const youTubeId = product.video_url ? getYouTubeId(product.video_url) : null;
   const price = Number(product.price);
   const discount = discountOf(product);
+  const inStock = isInStock(product);
+  const points = highlightLines(product.highlights);
   const cartProduct = { id: product.id, name: product.name, price, weight: product.weight, image: images[0] ?? null };
   const buyNowUrl = whatsappOrderUrl([{ name: product.name, price, quantity, weight: product.weight }]);
 
@@ -168,17 +172,30 @@ export default function ProductDetail({ id }: { id: string }) {
               <span className="text-3xl font-bold">{formatRupees(price)}</span>
             </div>
             {discount > 0 && (
-              <p className="text-xs text-slate-500 mt-1">
-                M.R.P.: <span className="line-through">{formatRupees(Number(product.mrp))}</span>
+              <p className="text-sm text-slate-500 mt-1 flex items-center gap-2 flex-wrap">
+                <span>
+                  M.R.P.: <span className="line-through">{formatRupees(Number(product.mrp))}</span>
+                </span>
+                <span className="bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded">{discount}% OFF</span>
+                <span className="text-emerald-700 font-semibold text-xs">
+                  ನೀವು ಉಳಿಸುವುದು {formatRupees(Number(product.mrp) - price)}
+                </span>
               </p>
             )}
             <p className="text-xs text-slate-500 mt-1">ಎಲ್ಲಾ ತೆರಿಗೆಗಳು ಸೇರಿ</p>
           </div>
 
           <div className="rounded-xl border border-slate-200 p-3 space-y-2 text-sm">
-            <p className="text-lg font-semibold text-emerald-700 flex items-center gap-1.5">
-              <CheckCircle2 className="w-5 h-5" /> In stock
-            </p>
+            {inStock ? (
+              <p className="text-lg font-semibold text-emerald-700 flex items-center gap-1.5">
+                <CheckCircle2 className="w-5 h-5" /> In stock
+              </p>
+            ) : (
+              <p className="text-lg font-semibold text-red-600">
+                Currently unavailable
+                <span className="block text-xs font-normal text-slate-500">ಸ್ಟಾಕ್ ಬಂದಾಗ ತಿಳಿಯಲು ಕರೆ ಮಾಡಿ: 7795198610</span>
+              </p>
+            )}
             <p className="flex items-start gap-2 text-slate-700">
               <Truck className="w-4 h-4 mt-0.5 text-slate-500 flex-none" />
               <span>
@@ -194,7 +211,7 @@ export default function ProductDetail({ id }: { id: string }) {
           </div>
 
           {/* ಕ್ವಾಂಟಿಟಿ ಸೆಲೆಕ್ಟರ್ */}
-          <div className="flex items-center gap-3">
+          <div className={`flex items-center gap-3 ${inStock ? "" : "hidden"}`}>
             <span className="text-sm font-semibold text-slate-700">Quantity:</span>
             <div className="flex items-center border border-slate-300 rounded-full overflow-hidden bg-slate-50 shadow-sm">
               <button
@@ -222,20 +239,31 @@ export default function ProductDetail({ id }: { id: string }) {
 
           {/* Add to Cart / Buy Now (ಮೊಬೈಲ್‌ನಲ್ಲಿ ಕೆಳಗೆ ಅಂಟಿಕೊಂಡಿರುವ ಬಾರ್) */}
           <div className="fixed md:static bottom-0 inset-x-0 z-30 bg-white md:bg-transparent border-t md:border-0 p-3 md:p-0 flex gap-3 shadow-[0_-4px_12px_rgba(0,0,0,0.08)] md:shadow-none">
-            <button
-              onClick={() => addItem(cartProduct, quantity)}
-              className="flex-1 bg-amber-400 hover:bg-amber-500 active:bg-amber-600 text-slate-900 font-bold py-3 rounded-full flex items-center justify-center gap-2 transition shadow-sm"
-            >
-              <ShoppingCart className="w-5 h-5" /> Add to Cart
-            </button>
-            <a
-              href={buyNowUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white font-bold py-3 rounded-full flex items-center justify-center gap-2 transition shadow-sm"
-            >
-              <Zap className="w-5 h-5" /> Buy Now
-            </a>
+            {inStock ? (
+              <>
+                <button
+                  onClick={() => addItem(cartProduct, quantity)}
+                  className="flex-1 bg-amber-400 hover:bg-amber-500 active:bg-amber-600 text-slate-900 font-bold py-3 rounded-full flex items-center justify-center gap-2 transition shadow-sm"
+                >
+                  <ShoppingCart className="w-5 h-5" /> Add to Cart
+                </button>
+                <a
+                  href={buyNowUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white font-bold py-3 rounded-full flex items-center justify-center gap-2 transition shadow-sm"
+                >
+                  <Zap className="w-5 h-5" /> Buy Now
+                </a>
+              </>
+            ) : (
+              <a
+                href="tel:7795198610"
+                className="flex-1 bg-slate-200 text-slate-700 font-bold py-3 rounded-full flex items-center justify-center gap-2"
+              >
+                <Phone className="w-5 h-5" /> Out of Stock — ವಿಚಾರಿಸಲು ಕರೆ ಮಾಡಿ
+              </a>
+            )}
           </div>
           <p className="text-xs text-slate-500 -mt-1 hidden md:block">&quot;Buy Now&quot; ಒತ್ತಿದರೆ ಈ ಉತ್ಪನ್ನದ ಆರ್ಡರ್ ನೇರವಾಗಿ WhatsApp ನಲ್ಲಿ ತೆರೆಯುತ್ತದೆ.</p>
 
@@ -273,11 +301,18 @@ export default function ProductDetail({ id }: { id: string }) {
           </div>
           <div>
             <h2 className="text-lg font-bold mb-3">About this item</h2>
+            {points.length > 0 && (
+              <ul className="list-disc pl-5 space-y-1.5 text-sm text-slate-800 mb-3">
+                {points.map((point, i) => (
+                  <li key={i}>{point}</li>
+                ))}
+              </ul>
+            )}
             {product.description ? (
               <p className="text-sm leading-relaxed text-slate-700 whitespace-pre-line">{product.description}</p>
-            ) : (
+            ) : points.length === 0 ? (
               <p className="text-sm text-slate-500">ಈ ಉತ್ಪನ್ನದ ಬಳಕೆ ಮತ್ತು ಘಟಕಾಂಶಗಳ ವಿವರಕ್ಕೆ ಕರೆ ಮಾಡಿ: 7795198610</p>
-            )}
+            ) : null}
           </div>
         </section>
 
@@ -324,15 +359,17 @@ export default function ProductDetail({ id }: { id: string }) {
                       </Link>
                       <div className="flex items-baseline gap-1.5">
                         <span className="font-bold text-sm">{formatRupees(Number(p.price))}</span>
-                        {off > 0 && <span className="text-[10px] font-bold text-red-600">{off}% off</span>}
+                        {off > 0 && <span className="text-[10px] font-bold text-red-600">{off}% OFF</span>}
                       </div>
+                      {off > 0 && <span className="text-[10px] text-slate-400 line-through -mt-1">{formatRupees(Number(p.mrp))}</span>}
                       <button
                         onClick={() =>
                           addItem({ id: p.id, name: p.name, price: Number(p.price), weight: p.weight, image: photo ?? null })
                         }
-                        className="mt-auto bg-amber-400 hover:bg-amber-500 text-slate-900 text-[11px] font-bold py-1.5 rounded-full transition"
+                        disabled={!isInStock(p)}
+                        className="mt-auto bg-amber-400 hover:bg-amber-500 text-slate-900 text-[11px] font-bold py-1.5 rounded-full transition disabled:bg-slate-200 disabled:text-slate-500"
                       >
-                        Add to Cart
+                        {isInStock(p) ? "Add to Cart" : "Out of Stock"}
                       </button>
                     </div>
                   </div>

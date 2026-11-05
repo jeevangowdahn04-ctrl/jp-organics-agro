@@ -9,6 +9,7 @@ import ImageCarousel from "./components/ImageCarousel";
 import CartButton from "./components/cart/CartButton";
 import { useCart } from "./components/cart/CartProvider";
 import { formatRupees } from "@/lib/whatsapp";
+import { discountPercent, isInStock } from "@/lib/pricing";
 import {
   Search, ShoppingCart, Phone, MapPin,
   Leaf, ShieldCheck, Sprout, Wrench,
@@ -25,6 +26,7 @@ interface Product {
   weight?: string;
   rating?: number;
   tag?: string;
+  in_stock?: boolean | null;
   image_url?: string | null;
   image_urls?: string[] | null;
   video_url?: string | null;
@@ -241,6 +243,16 @@ export default function Home() {
                   </div>
 
                   <div className="relative h-44 bg-slate-100 rounded-lg flex items-center justify-center mb-4 overflow-hidden">
+                    {discountPercent(item.price, item.mrp) > 0 && (
+                      <span className="absolute bottom-2 left-2 z-10 bg-red-600 text-white text-[11px] font-bold px-2 py-0.5 rounded shadow">
+                        {discountPercent(item.price, item.mrp)}% OFF
+                      </span>
+                    )}
+                    {!isInStock(item) && (
+                      <span className="absolute inset-x-0 top-1/2 -translate-y-1/2 z-10 bg-black/60 text-white text-xs font-bold text-center py-1 pointer-events-none">
+                        OUT OF STOCK
+                      </span>
+                    )}
                     {getProductImages(item).length > 0 ? (
                       <ImageCarousel images={getProductImages(item)} alt={item.name} href={`/products/${item.id}`} className="w-full h-full" />
                     ) : (
@@ -281,24 +293,29 @@ export default function Home() {
                 </div>
 
                 <div className="p-4 pt-0 border-t border-slate-100">
-                  <div className="flex items-baseline gap-2 mt-3 mb-1">
-                    <span className="text-lg font-extrabold text-slate-900">{formatRupees(Number(item.price))}</span>
-                    {item.mrp && Number(item.mrp) > Number(item.price) && (
-                      <>
-                        <span className="text-xs text-slate-400 line-through">{formatRupees(Number(item.mrp))}</span>
-                        <span className="text-xs font-bold text-red-600">
-                          {Math.round((1 - Number(item.price) / Number(item.mrp)) * 100)}% off
-                        </span>
-                      </>
+                  <div className="flex items-baseline gap-2 flex-wrap mt-3 mb-1">
+                    {discountPercent(item.price, item.mrp) > 0 && (
+                      <span className="text-base font-light text-red-600">-{discountPercent(item.price, item.mrp)}%</span>
                     )}
+                    <span className="text-xl font-extrabold text-slate-900">{formatRupees(Number(item.price))}</span>
                   </div>
-                  <p className="text-[11px] font-semibold text-emerald-700 mb-3">In Stock</p>
+                  {discountPercent(item.price, item.mrp) > 0 && (
+                    <p className="text-[11px] text-slate-500 -mt-0.5 mb-1">
+                      M.R.P.: <span className="line-through">{formatRupees(Number(item.mrp))}</span>
+                    </p>
+                  )}
+                  {isInStock(item) ? (
+                    <p className="text-[11px] font-semibold text-emerald-700 mb-3">In Stock</p>
+                  ) : (
+                    <p className="text-[11px] font-semibold text-red-600 mb-3">Out of Stock</p>
+                  )}
                   <button
                     onClick={() => addToCart(item)}
-                    className="w-full bg-amber-400 hover:bg-amber-500 active:bg-amber-600 text-slate-900 font-bold py-2 rounded-full text-xs flex items-center justify-center gap-1.5 transition shadow-sm"
+                    disabled={!isInStock(item)}
+                    className="w-full bg-amber-400 hover:bg-amber-500 active:bg-amber-600 text-slate-900 font-bold py-2 rounded-full text-xs flex items-center justify-center gap-1.5 transition shadow-sm disabled:bg-slate-200 disabled:text-slate-500 disabled:cursor-not-allowed"
                   >
                     <ShoppingCart className="w-3.5 h-3.5" />
-                    Add to Cart
+                    {isInStock(item) ? "Add to Cart" : "Currently unavailable"}
                   </button>
                 </div>
               </div>

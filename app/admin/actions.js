@@ -21,6 +21,7 @@ import {
   isOurStorageUrl,
   storagePathFromUrl,
 } from "@/lib/media";
+import { highlightLines } from "@/lib/pricing";
 
 export async function login(prevState, formData) {
   if (!(await checkPassword(formData.get("password")))) {
@@ -71,11 +72,23 @@ const SESSION_EXPIRED = { error: "ಲಾಗಿನ್ ಅವಧಿ ಮುಗಿ�
 const NO_SERVICE_KEY = { error: "ಸರ್ವರ್‌ನಲ್ಲಿ SUPABASE_SERVICE_ROLE_KEY ಸೆಟ್ ಆಗಿಲ್ಲ." };
 
 // ಫಾರ್ಮ್‌ನಿಂದ ಬಂದ ಮಾಹಿತಿಯನ್ನು ಪರಿಶೀಲಿಸಿ ಡೇಟಾಬೇಸ್ ರೋ ತಯಾರಿಸುವುದು
-function buildProductRow({ name, price, description, imageUrls, videoUrl }) {
-  const cleanName = typeof name === "string" ? name.trim() : "";
+const cleanText = (value, max = 5000) => (typeof value === "string" ? value.trim().slice(0, max) : "");
+
+function buildProductRow({ name, price, mrp, category, weight, description, highlights, inStock, imageUrls, videoUrl }) {
+  const cleanName = cleanText(name, 200);
   const cleanPrice = Number(price);
   if (!cleanName || !Number.isFinite(cleanPrice) || cleanPrice < 0) {
-    return { error: "ಸರಿಯಾದ ಹೆಸರು ಮತ್ತು ಬೆಲೆ ನಮೂದಿಸಿ." };
+    return { error: "ಸರಿಯಾದ ಹೆಸರು ಮತ್ತು ಆಫರ್ ಬೆಲೆ ನಮೂದಿಸಿ." };
+  }
+
+  // MRP ಐಚ್ಛಿಕ; ಕೊಟ್ಟರೆ ಆಫರ್ ಬೆಲೆಗಿಂತ ಕಡಿಮೆ ಇರಬಾರದು
+  const hasMrp = mrp !== "" && mrp !== null && mrp !== undefined;
+  const cleanMrp = hasMrp ? Number(mrp) : null;
+  if (hasMrp && (!Number.isFinite(cleanMrp) || cleanMrp < 0)) {
+    return { error: "ಸರಿಯಾದ MRP ನಮೂದಿಸಿ." };
+  }
+  if (hasMrp && cleanMrp < cleanPrice) {
+    return { error: "MRP (ಮೂಲ ಬೆಲೆ) ಆಫರ್ ಬೆಲೆಗಿಂತ ಕಡಿಮೆ ಇರಬಾರದು." };
   }
 
   const images = Array.isArray(imageUrls) ? imageUrls.map((u) => String(u).trim()).filter(Boolean) : [];
@@ -95,7 +108,13 @@ function buildProductRow({ name, price, description, imageUrls, videoUrl }) {
     row: {
       name: cleanName,
       price: cleanPrice,
-      description: typeof description === "string" ? description.trim() : "",
+      mrp: cleanMrp,
+      category: cleanText(category, 100) || null,
+      weight: cleanText(weight, 100) || null,
+      description: cleanText(description),
+      // ಸಾಲುಗಳ array: jsonb ಕಾಲಂಗೆ ನೇರವಾಗಿ, text ಕಾಲಂಗೆ JSON ಪಠ್ಯವಾಗಿ ಉಳಿಯುತ್ತದೆ; ಓದುವಾಗ ಎರಡನ್ನೂ highlightLines ಸರಿಯಾಗಿ ಓದುತ್ತದೆ
+      highlights: highlightLines(cleanText(highlights)),
+      in_stock: inStock !== false,
       image_url: images[0] ?? null,
       image_urls: images,
       video_url: cleanVideo || null,
@@ -105,7 +124,7 @@ function buildProductRow({ name, price, description, imageUrls, videoUrl }) {
 
 function dbError(error) {
   if (error.code === "42703" || error.code === "PGRST204") {
-    return { error: "ಡೇಟಾಬೇಸ್‌ನಲ್ಲಿ ಬೇಕಾದ ಕಾಲಂ ಇಲ್ಲ (image_urls / video_url). supabase/product-gallery.sql ರನ್ ಮಾಡಿ." };
+    return { error: "ಡೇಟಾಬೇಸ್‌ನಲ್ಲಿ ಬೇಕಾದ ಕಾಲಂ ಇಲ್ಲ (in_stock / highlights). supabase/product-pricing-stock.sql ರನ್ ಮಾಡಿ." };
   }
   return { error: error.message };
 }
