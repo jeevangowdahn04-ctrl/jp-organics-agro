@@ -44,7 +44,10 @@ const fromUrl = (url) => ({ key: `k${nextKey++}`, url, preview: url });
 const fromFile = (file) => ({ key: `k${nextKey++}`, file, preview: URL.createObjectURL(file) });
 const releasePreview = (img) => img.file && URL.revokeObjectURL(img.preview);
 
-export default function AdminDashboard() {
+// embedded: ಮುಖಪುಟದ ಇನ್‌ಲೈನ್ ಅಡ್ಮಿನ್ ಪ್ಯಾನೆಲ್ ಒಳಗೆ (ಸ್ವಂತ ಹೆಡರ್/ಲಾಗ್‌ಔಟ್ ಇಲ್ಲ)
+// initialEditId: ತೆರೆದ ತಕ್ಷಣ ಈ ಪ್ರಾಡಕ್ಟ್ ಎಡಿಟ್ ಮೋಡ್‌ನಲ್ಲಿ; onProductsChanged: ಸೇರಿಸು/ಎಡಿಟ್/ಅಳಿಸು ನಂತರ ತಿಳಿಸುವುದು
+/** @param {{ embedded?: boolean, initialEditId?: string | number | null, onProductsChanged?: () => void }} [props] */
+export default function AdminDashboard({ embedded = false, initialEditId = null, onProductsChanged } = {}) {
   const [products, setProducts] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [name, setName] = useState("");
@@ -75,18 +78,10 @@ export default function AdminDashboard() {
   const refreshProducts = async () => {
     const data = await loadProducts();
     if (data) setProducts(data);
+    onProductsChanged?.();
   };
+  const initialEditDone = useRef(false);
 
-  // Supabase ನಿಂದ ಪ್ರಾಡಕ್ಟ್‌ಗಳ ಪಟ್ಟಿ ಪಡೆಯುವುದು
-  useEffect(() => {
-    let active = true;
-    loadProducts().then((data) => {
-      if (active && data) setProducts(data);
-    });
-    return () => {
-      active = false;
-    };
-  }, []);
 
   const addImageFiles = (e) => {
     const files = Array.from(e.target.files ?? []);
@@ -199,6 +194,26 @@ export default function AdminDashboard() {
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
+  // Supabase ನಿಂದ ಪ್ರಾಡಕ್ಟ್‌ಗಳ ಪಟ್ಟಿ ಪಡೆಯುವುದು
+  useEffect(() => {
+    let active = true;
+    loadProducts().then((data) => {
+      if (!active || !data) return;
+      setProducts(data);
+      // ಮುಖಪುಟದ ಕಾರ್ಡ್‌ನ "Edit" ಒತ್ತಿ ಬಂದಿದ್ದರೆ ಆ ಪ್ರಾಡಕ್ಟ್ ಅನ್ನು ನೇರವಾಗಿ ಎಡಿಟ್‌ಗೆ
+      const target = initialEditId != null ? data.find((p) => String(p.id) === String(initialEditId)) : null;
+      if (target && !initialEditDone.current) {
+        initialEditDone.current = true;
+        startEdit(target);
+      }
+    });
+    return () => {
+      active = false;
+    };
+    // ತೆರೆದಾಗ ಒಮ್ಮೆ ಮಾತ್ರ (initialEditId ಮೊದಲ ಬಾರಿಗೆ ಮಾತ್ರ ಬಳಕೆ)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleDelete = async (p) => {
     const ok = window.confirm(
       `"${p.name}" ಪ್ರಾಡಕ್ಟ್ ಅನ್ನು ಶಾಶ್ವತವಾಗಿ ಅಳಿಸಬೇಕೆ?\n\nಇದರ ಎಲ್ಲಾ ಫೋಟೋಗಳು ಮತ್ತು ಅಪ್‌ಲೋಡ್ ಮಾಡಿದ ವಿಡಿಯೋ ಕೂಡ ಅಳಿಸಲ್ಪಡುತ್ತವೆ. ಇದನ್ನು ಹಿಂಪಡೆಯಲು ಸಾಧ್ಯವಿಲ್ಲ.`
@@ -279,8 +294,8 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div style={{ maxWidth: "800px", margin: "40px auto", padding: "20px", fontFamily: "sans-serif" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #2e7d32", paddingBottom: "10px" }}>
+    <div style={{ maxWidth: "800px", margin: embedded ? "0 auto" : "40px auto", padding: embedded ? "12px 16px 24px" : "20px", fontFamily: "sans-serif" }}>
+      <div style={{ display: embedded ? "none" : "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #2e7d32", paddingBottom: "10px" }}>
         <h1 style={{ margin: 0, color: "#2e7d32" }}>
           JP Organics - Admin Dashboard
         </h1>

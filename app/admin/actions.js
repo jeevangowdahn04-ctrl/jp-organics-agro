@@ -23,23 +23,56 @@ import {
 } from "@/lib/media";
 import { highlightLines } from "@/lib/pricing";
 
+// ಅಡ್ಮಿನ್ ಕುಕೀ ಇಡೀ ಸೈಟ್‌ಗೆ (path "/"), ಮುಖಪುಟದ ಇನ್‌ಲೈನ್ ಅಡ್ಮಿನ್ ಮೋಡ್ ಕೂಡ ಇದನ್ನು ಪರಿಶೀಲಿಸುತ್ತದೆ
+async function startAdminSession() {
+  const jar = await cookies();
+  jar.delete({ name: ADMIN_COOKIE, path: "/admin" }); // ಹಳೆಯ /admin-ಮಾತ್ರ ಕುಕೀ ಇದ್ದರೆ ತೆಗೆಯುವುದು
+  jar.set(ADMIN_COOKIE, await sessionToken(), {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 8, // 8 ಗಂಟೆ
+  });
+}
+
+async function endAdminSession() {
+  const jar = await cookies();
+  jar.delete({ name: ADMIN_COOKIE, path: "/" });
+  jar.delete({ name: ADMIN_COOKIE, path: "/admin" });
+}
+
 export async function login(prevState, formData) {
   if (!(await checkPassword(formData.get("password")))) {
     return { error: "ತಪ್ಪು ಪಾಸ್‌ವರ್ಡ್. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ." };
   }
-
-  (await cookies()).set(ADMIN_COOKIE, await sessionToken(), {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/admin",
-    maxAge: 60 * 60 * 8, // 8 ಗಂಟೆ
-  });
+  await startAdminSession();
   redirect("/admin");
 }
 
+// ಮುಖಪುಟ/ಪ್ರೊಫೈಲ್‌ನಿಂದ ಅಡ್ಮಿನ್ ಲಾಗಿನ್ (redirect ಇಲ್ಲ, ಫಲಿತಾಂಶ ಮಾತ್ರ)
+export async function adminLoginInline(prevState, formData) {
+  // ಊಹಿಸಿ ಪ್ರಯತ್ನಿಸುವುದನ್ನು ನಿಧಾನಗೊಳಿಸಲು ಸಣ್ಣ ವಿರಾಮ
+  await new Promise((resolve) => setTimeout(resolve, 600));
+  if (!(await checkPassword(formData.get("password")))) {
+    return { error: "wrong" };
+  }
+  await startAdminSession();
+  return { ok: true };
+}
+
+export async function adminLogoutInline() {
+  await endAdminSession();
+  return { ok: true };
+}
+
+// ಕ್ಲೈಂಟ್ UI ಗೆ ಮಾತ್ರ: ಅಡ್ಮಿನ್ ಕಂಟ್ರೋಲ್‌ಗಳನ್ನು ತೋರಿಸಬೇಕೆ? (ಪ್ರತಿ ಬದಲಾವಣೆಯನ್ನು ಸರ್ವರ್ ಮತ್ತೆ isAdmin ನಿಂದ ಪರಿಶೀಲಿಸುತ್ತದೆ)
+export async function adminStatus() {
+  return { isAdmin: await isAdmin() };
+}
+
 export async function logout() {
-  (await cookies()).delete({ name: ADMIN_COOKIE, path: "/admin" });
+  await endAdminSession();
   redirect("/admin");
 }
 
@@ -198,6 +231,16 @@ export async function deleteProduct(id) {
   if (error) return dbError(error);
 
   await removeStorageFiles(supabaseAdmin, storagePathsOf(existing));
+  return { ok: true };
+}
+
+// ಮುಖಪುಟದ ಕಾರ್ಡ್‌ನಿಂದಲೇ In Stock / Out of Stock ಬದಲಿಸುವುದು
+export async function setProductStock(id, inStock) {
+  if (!(await isAdmin())) return SESSION_EXPIRED;
+  const supabaseAdmin = getSupabaseAdmin();
+  if (!supabaseAdmin) return NO_SERVICE_KEY;
+  const { error } = await supabaseAdmin.from("products").update({ in_stock: inStock === true }).eq("id", id);
+  if (error) return dbError(error);
   return { ok: true };
 }
 

@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { Check, CheckCircle2, ChevronRight, LogOut, MapPin, MessageCircle, Package, Pencil, Phone, User } from "lucide-react";
 import PageHeader from "../components/PageHeader";
+import AdminLoginSection from "../components/admin/AdminLoginSection";
 import { useLanguage } from "../components/i18n/LanguageProvider";
 import { PHONE_PATTERN, useCustomer, type Customer } from "../components/customer/CustomerProvider";
 import { LANGS, type TranslationKey } from "@/lib/i18n";
@@ -287,6 +288,8 @@ export default function ProfilePage() {
             </button>
           )}
         </section>
+
+        <AdminLoginSection />
       </main>
     </div>
   );

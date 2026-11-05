@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -11,6 +11,7 @@ import { useCart } from "./components/cart/CartProvider";
 import { useCustomer } from "./components/customer/CustomerProvider";
 import ProfileButton from "./components/customer/ProfileButton";
 import LanguageSwitcher from "./components/i18n/LanguageSwitcher";
+import { AdminBar, AdminPanel, CardAdminControls, useAdminMode, useAdminPanel } from "./components/admin/InlineAdmin";
 import { useLanguage } from "./components/i18n/LanguageProvider";
 import { formatRupees, WHATSAPP_NUMBER } from "@/lib/whatsapp";
 import { discountPercent, isInStock } from "@/lib/pricing";
@@ -48,6 +49,20 @@ const CATEGORIES: { key: TranslationKey; icon: typeof Leaf; count: number }[] = 
   { key: "cat.tools", icon: Wrench, count: 10 },
 ];
 
+async function loadProducts(): Promise<Product[] | null> {
+  try {
+    const { data, error } = await supabase.from("products").select("*").order("id", { ascending: false });
+    if (error) {
+      console.error("Error fetching products:", error);
+      return null;
+    }
+    return data;
+  } catch (err) {
+    console.error("Fetch error:", err);
+    return null;
+  }
+}
+
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,27 +77,25 @@ export default function Home() {
 
   // Supabase ನಿಂದ ಪ್ರಾಡಕ್ಟ್‌ಗಳನ್ನು ತರುವುದು
   useEffect(() => {
-    async function fetchProducts() {
-      try {
-        const { data, error } = await supabase
-          .from("products")
-          .select("*")
-          .order("id", { ascending: false });
-
-        if (error) {
-          console.error("Error fetching products:", error);
-        } else if (data) {
-          setProducts(data);
-        }
-      } catch (err) {
-        console.error("Fetch error:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchProducts();
+    let active = true;
+    loadProducts().then((data) => {
+      if (!active) return;
+      if (data) setProducts(data);
+      setLoading(false);
+    });
+    return () => {
+      active = false;
+    };
   }, []);
+
+  // ಅಡ್ಮಿನ್ ಬದಲಾವಣೆಯ (ಸೇರಿಸು/ಎಡಿಟ್/ಅಳಿಸು/ಸ್ಟಾಕ್) ನಂತರ ಪಟ್ಟಿಯನ್ನು ಮತ್ತೆ ತರುವುದು
+  const fetchProducts = useCallback(async () => {
+    const data = await loadProducts();
+    if (data) setProducts(data);
+  }, []);
+
+  const [isAdmin, setIsAdmin] = useAdminMode();
+  const adminPanel = useAdminPanel();
 
   // ಹುಡುಕಾಟ (ಹೆಸರು, ವರ್ಗ, ವಿವರಣೆ) + ವರ್ಗ ಫಿಲ್ಟರ್ (ವರ್ಗದ ಹೆಸರು ಕನ್ನಡ ಅಥವಾ English ಎರಡರಲ್ಲೂ ಹೊಂದುತ್ತದೆ)
   const visibleProducts = useMemo(() => {
@@ -182,6 +195,10 @@ export default function Home() {
         </div>
         <div className="px-4 pb-3 md:hidden">{searchBox("w-full")}</div>
       </header>
+
+      {isAdmin && (
+        <AdminBar onAdd={adminPanel.openAdd} onOpenPanel={adminPanel.openAdd} onLoggedOut={() => setIsAdmin(false)} />
+      )}
 
       {/* Hero Banner */}
       <section className="bg-gradient-to-r from-emerald-800 to-emerald-950 text-white py-12 px-4">
@@ -381,6 +398,14 @@ export default function Home() {
                       <ShoppingCart className="w-3.5 h-3.5" />
                       {inStock ? t("btn.addToCart") : t("stock.unavailable")}
                     </button>
+                    {isAdmin && (
+                      <CardAdminControls
+                        product={{ id: item.id, name: text.name }}
+                        inStock={inStock}
+                        onEdit={() => adminPanel.openEdit(item.id)}
+                        onChanged={fetchProducts}
+                      />
+                    )}
                   </div>
                 </div>
               );
@@ -424,6 +449,15 @@ export default function Home() {
             </div>
           </div>
         </div>
+      )}
+
+      {isAdmin && adminPanel.panel.open && (
+        <AdminPanel
+          key={adminPanel.panel.key}
+          editId={adminPanel.panel.editId}
+          onClose={adminPanel.close}
+          onProductsChanged={fetchProducts}
+        />
       )}
 
       {/* Footer */}
