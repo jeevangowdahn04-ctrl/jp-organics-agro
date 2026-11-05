@@ -5,6 +5,9 @@ import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { getProductImages, getYouTubeId } from "@/lib/media";
 import ImageCarousel from "./components/ImageCarousel";
+import CartButton from "./components/cart/CartButton";
+import { useCart } from "./components/cart/CartProvider";
+import { formatRupees } from "@/lib/whatsapp";
 import {
   Search, ShoppingCart, Phone, MapPin,
   Leaf, ShieldCheck, Sprout, Wrench,
@@ -29,8 +32,7 @@ interface Product {
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [cart, setCart] = useState<{ product: Product; quantity: number }[]>([]);
-  const [isCartOpen, setIsCartOpen] = useState(false);
+  const { addItem } = useCart();
   const [videoProduct, setVideoProduct] = useState<Product | null>(null);
   const videoYouTubeId = videoProduct?.video_url ? getYouTubeId(videoProduct.video_url) : null;
 
@@ -65,39 +67,14 @@ export default function Home() {
     { name: "ಕೃಷಿ ಪರಿಕರಗಳು", icon: Wrench, count: "10+ ಉತ್ಪನ್ನಗಳು" },
   ];
 
-  const addToCart = (product: Product) => {
-    setCart(prev => {
-      const existing = prev.find(item => item.product.id === product.id);
-      if (existing) {
-        return prev.map(item =>
-          item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
-        );
-      }
-      return [...prev, { product, quantity: 1 }];
+  const addToCart = (product: Product) =>
+    addItem({
+      id: product.id,
+      name: product.name,
+      price: Number(product.price),
+      weight: product.weight,
+      image: getProductImages(product)[0] ?? null,
     });
-    setIsCartOpen(true);
-  };
-
-  const removeFromCart = (id: number | string) => {
-    setCart(prev => prev.filter(item => item.product.id !== id));
-  };
-
-  const totalAmount = cart.reduce((sum, item) => sum + Number(item.product.price || 0) * item.quantity, 0);
-  const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-
-  const orderOnWhatsApp = () => {
-    if (cart.length === 0) return;
-    let message = "ನಮಸ್ಕಾರ JP Organics, ನಾನು ಈ ಕೆಳಗಿನ ಉತ್ಪನ್ನಗಳನ್ನು ಆರ್ಡರ್ ಮಾಡಲು ಬಯಸುತ್ತೇನೆ:\n\n";
-    cart.forEach((item, index) => {
-      const weightInfo = item.product.weight ? ` (${item.product.weight})` : "";
-      message += `${index + 1}. ${item.product.name}${weightInfo} - ${item.quantity} Nos - ₹${Number(item.product.price) * item.quantity}\n`;
-    });
-    message += `\nಒಟ್ಟು ಮೊತ್ತ: ₹${totalAmount}\n`;
-    message += `ದಯವಿಟ್ಟು ಡೆಲಿವರಿ ವಿವರಗಳನ್ನು ಕಳುಹಿಸಿ.`;
-
-    const encoded = encodeURIComponent(message);
-    window.open(`https://wa.me/916360628048?text=${encoded}`, "_blank");
-  };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans relative">
@@ -151,19 +128,7 @@ export default function Home() {
               <Phone className="w-4 h-4" />
               <span className="hidden sm:inline">ಕೃಷಿ ಸಹಾಯವಾಣಿ</span>
             </a>
-            <div 
-              onClick={() => setIsCartOpen(true)}
-              className="relative cursor-pointer"
-            >
-              <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center hover:bg-emerald-50 transition">
-                <ShoppingCart className="w-5 h-5 text-slate-700" />
-              </div>
-              {totalItems > 0 && (
-                <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-[11px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow">
-                  {totalItems}
-                </span>
-              )}
-            </div>
+            <CartButton />
           </div>
         </div>
       </header>
@@ -308,18 +273,24 @@ export default function Home() {
                 </div>
 
                 <div className="p-4 pt-0 border-t border-slate-100">
-                  <div className="flex items-baseline gap-2 mt-3 mb-3">
-                    <span className="text-lg font-extrabold text-slate-900">₹{item.price}</span>
-                    {item.mrp && (
-                      <span className="text-xs text-slate-400 line-through">₹{item.mrp}</span>
+                  <div className="flex items-baseline gap-2 mt-3 mb-1">
+                    <span className="text-lg font-extrabold text-slate-900">{formatRupees(Number(item.price))}</span>
+                    {item.mrp && Number(item.mrp) > Number(item.price) && (
+                      <>
+                        <span className="text-xs text-slate-400 line-through">{formatRupees(Number(item.mrp))}</span>
+                        <span className="text-xs font-bold text-red-600">
+                          {Math.round((1 - Number(item.price) / Number(item.mrp)) * 100)}% off
+                        </span>
+                      </>
                     )}
                   </div>
-                  <button 
+                  <p className="text-[11px] font-semibold text-emerald-700 mb-3">In Stock</p>
+                  <button
                     onClick={() => addToCart(item)}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg text-xs flex items-center justify-center gap-1.5 transition"
+                    className="w-full bg-amber-400 hover:bg-amber-500 active:bg-amber-600 text-slate-900 font-bold py-2 rounded-full text-xs flex items-center justify-center gap-1.5 transition shadow-sm"
                   >
                     <ShoppingCart className="w-3.5 h-3.5" />
-                    ಕಾರ್ಟ್‌ಗೆ ಸೇರಿಸಿ
+                    Add to Cart
                   </button>
                 </div>
               </div>
@@ -327,68 +298,6 @@ export default function Home() {
           </div>
         )}
       </section>
-
-      {/* Cart Drawer */}
-      {isCartOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex justify-end">
-          <div className="bg-white w-full max-w-md h-full flex flex-col justify-between p-6 shadow-2xl">
-            <div>
-              <div className="flex justify-between items-center border-b pb-4 mb-4">
-                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                  <ShoppingCart className="w-5 h-5 text-emerald-600" /> ನಿಮ್ಮ ಕಾರ್ಟ್ ({totalItems})
-                </h3>
-                <button 
-                  onClick={() => setIsCartOpen(false)}
-                  className="p-1 rounded-full hover:bg-slate-100 text-slate-500"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {cart.length === 0 ? (
-                <div className="text-center py-12 text-slate-500 text-sm">
-                  ಕಾರ್ಟ್ ಖಾಲಿಯಾಗಿದೆ. ಉತ್ಪನ್ನಗಳನ್ನು ಆಯ್ಕೆ ಮಾಡಿ.
-                </div>
-              ) : (
-                <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
-                  {cart.map((item) => (
-                    <div key={item.product.id} className="flex justify-between items-center border-b pb-3">
-                      <div>
-                        <h4 className="font-bold text-xs text-slate-900">{item.product.name}</h4>
-                        <p className="text-xs text-slate-500">₹{item.product.price} × {item.quantity}</p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="font-bold text-sm text-emerald-700">₹{Number(item.product.price) * item.quantity}</span>
-                        <button 
-                          onClick={() => removeFromCart(item.product.id)}
-                          className="text-red-500 hover:text-red-700 text-xs font-semibold"
-                        >
-                          ತೆಗೆದುಹಾಕಿ
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {cart.length > 0 && (
-              <div className="border-t pt-4">
-                <div className="flex justify-between text-base font-bold mb-4">
-                  <span>ಒಟ್ಟು ಮೊತ್ತ:</span>
-                  <span className="text-emerald-700">₹{totalAmount}</span>
-                </div>
-                <button
-                  onClick={orderOnWhatsApp}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition shadow-lg"
-                >
-                  <MessageCircle className="w-5 h-5" /> WhatsApp ನಲ್ಲಿ ಆರ್ಡರ್ ಪೂರ್ಣಗೊಳಿಸಿ
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Product Video Modal */}
       {videoProduct?.video_url && (
