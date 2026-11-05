@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, X, ZoomIn, ZoomOut } from "lucide-react";
+import { useLanguage } from "./i18n/LanguageProvider";
 
 interface ImageLightboxProps {
   images: string[];
@@ -16,6 +17,7 @@ export default function ImageLightbox({ images, alt, startIndex, onClose }: Imag
   const trackRef = useRef<HTMLDivElement>(null);
   const thumbsRef = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(startIndex);
+  const { t } = useLanguage();
   const [zoomed, setZoomed] = useState(false);
   const [origin, setOrigin] = useState("50% 50%");
   const count = images.length;
@@ -88,7 +90,7 @@ export default function ImageLightbox({ images, alt, startIndex, onClose }: Imag
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={`${alt} ಫೋಟೋಗಳು`}
+      aria-label={t("gallery.photos", { name: alt })}
       className="fixed inset-0 z-[100] bg-black flex flex-col select-none"
     >
       {/* ಮೇಲ್ಭಾಗದ ಪಟ್ಟಿ: ಹೆಸರು, ಎಣಿಕೆ, zoom, ಮುಚ್ಚು */}
@@ -114,7 +116,7 @@ export default function ImageLightbox({ images, alt, startIndex, onClose }: Imag
           <button
             type="button"
             onClick={onClose}
-            aria-label="ಮುಚ್ಚಿ (Close)"
+            aria-label={t("btn.close")}
             autoFocus
             className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center transition"
           >
@@ -154,7 +156,7 @@ export default function ImageLightbox({ images, alt, startIndex, onClose }: Imag
               id="lightbox-prev"
               type="button"
               onClick={() => goTo(index - 1)}
-              aria-label="ಹಿಂದಿನ ಫೋಟೋ (Previous)"
+              aria-label={t("gallery.prev")}
               className={`${arrowClass} left-2 sm:left-4`}
             >
               <ChevronLeft className="w-6 h-6" />
@@ -163,7 +165,7 @@ export default function ImageLightbox({ images, alt, startIndex, onClose }: Imag
               id="lightbox-next"
               type="button"
               onClick={() => goTo(index + 1)}
-              aria-label="ಮುಂದಿನ ಫೋಟೋ (Next)"
+              aria-label={t("gallery.next")}
               className={`${arrowClass} right-2 sm:right-4`}
             >
               <ChevronRight className="w-6 h-6" />
@@ -183,7 +185,7 @@ export default function ImageLightbox({ images, alt, startIndex, onClose }: Imag
               key={src + i}
               type="button"
               onClick={() => goTo(i, false)}
-              aria-label={`ಫೋಟೋ ${i + 1} ತೋರಿಸಿ`}
+              aria-label={t("gallery.show", { n: i + 1 })}
               aria-current={i === index}
               className={`flex-none w-14 h-14 sm:w-16 sm:h-16 rounded-md overflow-hidden border-2 transition ${
                 i === index ? "border-amber-400 opacity-100" : "border-transparent opacity-50 hover:opacity-90"

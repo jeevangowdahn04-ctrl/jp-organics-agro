@@ -13,6 +13,8 @@ import ShareButton from "../../components/ShareButton";
 import { MAX_QUANTITY, useCart } from "../../components/cart/CartProvider";
 import { useCustomer } from "../../components/customer/CustomerProvider";
 import ProfileButton from "../../components/customer/ProfileButton";
+import LanguageSwitcher from "../../components/i18n/LanguageSwitcher";
+import { useLanguage } from "../../components/i18n/LanguageProvider";
 
 interface Product {
   id: number | string;
@@ -48,9 +50,9 @@ async function loadProduct(id: string): Promise<LoadState> {
 
 const BRAND = "JP Organics";
 
-function Stars({ rating }: { rating: number }) {
+function Stars({ rating, label }: { rating: number; label: string }) {
   return (
-    <span className="flex items-center gap-1" aria-label={`${rating} / 5 ರೇಟಿಂಗ್`}>
+    <span className="flex items-center gap-1" aria-label={label}>
       <span className="text-sm font-semibold text-slate-700">{rating.toFixed(1)}</span>
       {[1, 2, 3, 4, 5].map((n) => (
         <Star
@@ -69,6 +71,7 @@ export default function ProductDetail({ id }: { id: string }) {
   const [quantity, setQuantity] = useState(1);
   const { addItem } = useCart();
   const { requireLogin } = useCustomer();
+  const { t } = useLanguage();
 
   useEffect(() => {
     let active = true;
@@ -84,10 +87,11 @@ export default function ProductDetail({ id }: { id: string }) {
     <header className="bg-emerald-900 text-white sticky top-0 z-40 shadow">
       <div className="max-w-6xl mx-auto px-4 py-2.5 flex items-center justify-between gap-4">
         <Link href="/" className="flex items-center gap-2 text-sm font-semibold hover:text-emerald-200">
-          <ArrowLeft className="w-5 h-5" /> <span className="hidden sm:inline">ಎಲ್ಲಾ ಉತ್ಪನ್ನಗಳು</span>
+          <ArrowLeft className="w-5 h-5" /> <span className="hidden sm:inline">{t("header.allProducts")}</span>
         </Link>
-        <Link href="/" className="font-bold tracking-wide">JP ORGANICS</Link>
+        <Link href="/" className="font-bold tracking-wide hidden min-[400px]:block">JP ORGANICS</Link>
         <div className="flex items-center gap-2">
+          <LanguageSwitcher dark />
           <ProfileButton dark />
           <CartButton className="bg-white/10 hover:bg-white/20 [&_svg]:text-white" />
         </div>
@@ -100,7 +104,7 @@ export default function ProductDetail({ id }: { id: string }) {
       <div className="min-h-screen bg-slate-50">
         {header}
         <div className="flex items-center justify-center py-32 text-emerald-700 font-semibold gap-2">
-          <Loader2 className="w-6 h-6 animate-spin" /> ಉತ್ಪನ್ನ ಲೋಡ್ ಆಗುತ್ತಿದೆ...
+          <Loader2 className="w-6 h-6 animate-spin" /> {t("detail.loading")}
         </div>
       </div>
     );
@@ -111,8 +115,8 @@ export default function ProductDetail({ id }: { id: string }) {
       <div className="min-h-screen bg-slate-50">
         {header}
         <div className="flex flex-col items-center justify-center gap-4 text-slate-600 px-4 py-32 text-center">
-          <p>ಈ ಉತ್ಪನ್ನ ಸಿಗಲಿಲ್ಲ. ಇದನ್ನು ತೆಗೆದುಹಾಕಿರಬಹುದು.</p>
-          <Link href="/" className="text-emerald-700 font-semibold hover:underline">← ಮುಖಪುಟಕ್ಕೆ ಹಿಂತಿರುಗಿ</Link>
+          <p>{t("detail.missing")}</p>
+          <Link href="/" className="text-emerald-700 font-semibold hover:underline">{t("detail.backHome")}</Link>
         </div>
       </div>
     );
@@ -126,12 +130,12 @@ export default function ProductDetail({ id }: { id: string }) {
   const inStock = isInStock(product);
   const points = highlightLines(product.highlights);
   const cartProduct = { id: product.id, name: product.name, price, weight: product.weight, image: images[0] ?? null };
-  const addToCart = () => requireLogin(() => addItem(cartProduct, quantity), "ಕಾರ್ಟ್‌ಗೆ ಸೇರಿಸಲು ಲಾಗಿನ್ ಮಾಡಿ");
+  const addToCart = () => requireLogin(() => addItem(cartProduct, quantity), t("login.reasonCart"));
   const buyNow = () =>
     requireLogin((customer) => {
       const url = whatsappOrderUrl([{ name: product.name, price, quantity, weight: product.weight }], customer);
       window.open(url, "_blank", "noopener,noreferrer");
-    }, "ಖರೀದಿಸಲು ಲಾಗಿನ್ ಮಾಡಿ");
+    }, t("login.reasonBuy"));
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-24 md:pb-0">
@@ -161,20 +165,22 @@ export default function ProductDetail({ id }: { id: string }) {
           <div className="flex gap-2 flex-wrap">
             <span className="text-[11px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded">{product.tag || "Organic"}</span>
             <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded uppercase">
-              {product.category || "ಕೃಷಿ ಪೋಷಕಾಂಶ"}
+              {product.category || t("products.defaultCategory")}
             </span>
           </div>
 
           <Link href="/" className="text-sm text-emerald-700 hover:underline block -mb-2">
-            Visit the {BRAND} Store
+            {t("detail.visitStore")}
           </Link>
           <h1 className="text-xl md:text-2xl font-bold leading-snug">{product.name}</h1>
           <div className="flex items-center gap-3 flex-wrap -mt-2 text-sm">
             <span className="text-slate-500">
-              Brand: <span className="font-semibold text-slate-800">{BRAND}</span>
+              {t("detail.brand")}: <span className="font-semibold text-slate-800">{BRAND}</span>
             </span>
-            {product.weight && <span className="text-slate-500">· ಪ್ಯಾಕಿಂಗ್: {product.weight}</span>}
-            {product.rating ? <Stars rating={Number(product.rating)} /> : null}
+            {product.weight && <span className="text-slate-500">· {t("product.packing")}: {product.weight}</span>}
+            {product.rating ? (
+              <Stars rating={Number(product.rating)} label={t("detail.rating", { n: Number(product.rating).toFixed(1) })} />
+            ) : null}
           </div>
 
           <div className="border-t pt-4">
@@ -185,61 +191,61 @@ export default function ProductDetail({ id }: { id: string }) {
             {discount > 0 && (
               <p className="text-sm text-slate-500 mt-1 flex items-center gap-2 flex-wrap">
                 <span>
-                  M.R.P.: <span className="line-through">{formatRupees(Number(product.mrp))}</span>
+                  {t("price.mrp")}: <span className="line-through">{formatRupees(Number(product.mrp))}</span>
                 </span>
-                <span className="bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded">{discount}% OFF</span>
+                <span className="bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded">{t("price.off", { n: discount })}</span>
                 <span className="text-emerald-700 font-semibold text-xs">
-                  ನೀವು ಉಳಿಸುವುದು {formatRupees(Number(product.mrp) - price)}
+                  {t("price.save", { amount: formatRupees(Number(product.mrp) - price) })}
                 </span>
               </p>
             )}
-            <p className="text-xs text-slate-500 mt-1">ಎಲ್ಲಾ ತೆರಿಗೆಗಳು ಸೇರಿ</p>
+            <p className="text-xs text-slate-500 mt-1">{t("price.taxes")}</p>
           </div>
 
           <div className="rounded-xl border border-slate-200 p-3 space-y-2 text-sm">
             {inStock ? (
               <p className="text-lg font-semibold text-emerald-700 flex items-center gap-1.5">
-                <CheckCircle2 className="w-5 h-5" /> In stock
+                <CheckCircle2 className="w-5 h-5" /> {t("stock.in")}
               </p>
             ) : (
               <p className="text-lg font-semibold text-red-600">
-                Currently unavailable
-                <span className="block text-xs font-normal text-slate-500">ಸ್ಟಾಕ್ ಬಂದಾಗ ತಿಳಿಯಲು ಕರೆ ಮಾಡಿ: 7795198610</span>
+                {t("stock.unavailable")}
+                <span className="block text-xs font-normal text-slate-500">{t("stock.notify")}</span>
               </p>
             )}
             <p className="flex items-start gap-2 text-slate-700">
               <Truck className="w-4 h-4 mt-0.5 text-slate-500 flex-none" />
               <span>
-                <b>ಡೆಲಿವರಿ:</b> ಕರ್ನಾಟಕದಾದ್ಯಂತ ಮನೆಬಾಗಿಲಿಗೆ ಡೆಲಿವರಿ ಲಭ್ಯ. ಡೆಲಿವರಿ ಶುಲ್ಕ ಮತ್ತು ದಿನಾಂಕವನ್ನು ಆರ್ಡರ್ ಮಾಡುವಾಗ WhatsApp ನಲ್ಲಿ ತಿಳಿಸಲಾಗುತ್ತದೆ.
+                <b>{t("detail.delivery")}</b> {t("detail.deliveryText")}
               </span>
             </p>
             <p className="flex items-start gap-2 text-slate-700">
               <MapPin className="w-4 h-4 mt-0.5 text-slate-500 flex-none" />
               <span>
-                <b>Ships from & sold by:</b> {BRAND}, ಚನ್ನರಾಯಪಟ್ಟಣ, ಹಾಸನ ಜಿಲ್ಲೆ
+                <b>{t("detail.shipsFrom")}</b> {t("detail.shipsFromText")}
               </span>
             </p>
           </div>
 
           {/* ಕ್ವಾಂಟಿಟಿ ಸೆಲೆಕ್ಟರ್ */}
           <div className={`flex items-center gap-3 ${inStock ? "" : "hidden"}`}>
-            <span className="text-sm font-semibold text-slate-700">Quantity:</span>
+            <span className="text-sm font-semibold text-slate-700">{t("detail.quantity")}:</span>
             <div className="flex items-center border border-slate-300 rounded-full overflow-hidden bg-slate-50 shadow-sm">
               <button
                 onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                 disabled={quantity <= 1}
-                aria-label="ಕ್ವಾಂಟಿಟಿ ಕಡಿಮೆ ಮಾಡಿ"
+                aria-label={t("detail.qtyLess")}
                 className="w-10 h-10 flex items-center justify-center hover:bg-slate-200 disabled:opacity-40"
               >
                 <Minus className="w-4 h-4" />
               </button>
-              <span className="w-10 text-center font-bold" aria-live="polite" aria-label="ಆಯ್ಕೆ ಮಾಡಿದ ಕ್ವಾಂಟಿಟಿ">
+              <span className="w-10 text-center font-bold" aria-live="polite" aria-label={t("detail.qtySelected")}>
                 {quantity}
               </span>
               <button
                 onClick={() => setQuantity((q) => Math.min(MAX_QUANTITY, q + 1))}
                 disabled={quantity >= MAX_QUANTITY}
-                aria-label="ಕ್ವಾಂಟಿಟಿ ಹೆಚ್ಚಿಸಿ"
+                aria-label={t("detail.qtyMore")}
                 className="w-10 h-10 flex items-center justify-center hover:bg-slate-200 disabled:opacity-40"
               >
                 <Plus className="w-4 h-4" />
@@ -256,13 +262,13 @@ export default function ProductDetail({ id }: { id: string }) {
                   onClick={addToCart}
                   className="flex-1 bg-amber-400 hover:bg-amber-500 active:bg-amber-600 text-slate-900 font-bold py-3 rounded-full flex items-center justify-center gap-2 transition shadow-sm"
                 >
-                  <ShoppingCart className="w-5 h-5" /> Add to Cart
+                  <ShoppingCart className="w-5 h-5" /> {t("btn.addToCart")}
                 </button>
                 <button
                   onClick={buyNow}
                   className="flex-1 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white font-bold py-3 rounded-full flex items-center justify-center gap-2 transition shadow-sm"
                 >
-                  <Zap className="w-5 h-5" /> Buy Now
+                  <Zap className="w-5 h-5" /> {t("btn.buyNow")}
                 </button>
               </>
             ) : (
@@ -270,16 +276,16 @@ export default function ProductDetail({ id }: { id: string }) {
                 href="tel:7795198610"
                 className="flex-1 bg-slate-200 text-slate-700 font-bold py-3 rounded-full flex items-center justify-center gap-2"
               >
-                <Phone className="w-5 h-5" /> Out of Stock — ವಿಚಾರಿಸಲು ಕರೆ ಮಾಡಿ
+                <Phone className="w-5 h-5" /> {t("btn.outOfStockCall")}
               </a>
             )}
           </div>
-          <p className="text-xs text-slate-500 -mt-1 hidden md:block">&quot;Buy Now&quot; ಒತ್ತಿದರೆ ಈ ಉತ್ಪನ್ನದ ಆರ್ಡರ್ ನೇರವಾಗಿ WhatsApp ನಲ್ಲಿ ತೆರೆಯುತ್ತದೆ.</p>
+          <p className="text-xs text-slate-500 -mt-1 hidden md:block">{t("detail.buyNowHint")}</p>
 
           <div className="grid grid-cols-3 gap-2 text-center text-[11px] text-slate-600 border-y py-3">
-            <div className="flex flex-col items-center gap-1"><Truck className="w-5 h-5 text-emerald-700" /> ಮನೆಬಾಗಿಲಿಗೆ ಡೆಲಿವರಿ</div>
-            <div className="flex flex-col items-center gap-1"><ShieldCheck className="w-5 h-5 text-emerald-700" /> ಪರೀಕ್ಷಿತ ಗುಣಮಟ್ಟ</div>
-            <a href="tel:7795198610" className="flex flex-col items-center gap-1 hover:text-emerald-700"><Phone className="w-5 h-5 text-emerald-700" /> ಕೃಷಿ ಸಲಹೆ</a>
+            <div className="flex flex-col items-center gap-1"><Truck className="w-5 h-5 text-emerald-700" /> {t("detail.trustDelivery")}</div>
+            <div className="flex flex-col items-center gap-1"><ShieldCheck className="w-5 h-5 text-emerald-700" /> {t("detail.trustQuality")}</div>
+            <a href="tel:7795198610" className="flex flex-col items-center gap-1 hover:text-emerald-700"><Phone className="w-5 h-5 text-emerald-700" /> {t("detail.trustAdvice")}</a>
           </div>
 
         </section>
@@ -287,16 +293,16 @@ export default function ProductDetail({ id }: { id: string }) {
         {/* Product details & Description */}
         <section className="md:col-span-2 bg-white md:rounded-2xl md:border px-4 py-5 md:p-6 border-t grid md:grid-cols-2 gap-6">
           <div>
-            <h2 className="text-lg font-bold mb-3">Product details</h2>
+            <h2 className="text-lg font-bold mb-3">{t("detail.productDetails")}</h2>
             <table className="w-full text-sm">
               <tbody className="divide-y divide-slate-100">
                 {[
-                  ["Brand", BRAND],
-                  ["ಉತ್ಪನ್ನದ ಹೆಸರು", product.name],
-                  ["ವಿಭಾಗ (Category)", product.category || "ಕೃಷಿ ಪೋಷಕಾಂಶ"],
-                  ["ಪ್ಯಾಕಿಂಗ್ (Net quantity)", product.weight],
-                  ["ಪ್ರಕಾರ (Type)", product.tag || "Organic"],
-                  ["ಮಾರಾಟಗಾರರು", `${BRAND}, ಚನ್ನರಾಯಪಟ್ಟಣ`],
+                  [t("detail.brand"), BRAND],
+                  [t("detail.row.name"), product.name],
+                  [t("detail.row.category"), product.category || t("products.defaultCategory")],
+                  [t("detail.row.packing"), product.weight],
+                  [t("detail.row.type"), product.tag || "Organic"],
+                  [t("detail.row.seller"), t("detail.sellerValue")],
                 ]
                   .filter(([, v]) => v)
                   .map(([label, value]) => (
@@ -309,7 +315,7 @@ export default function ProductDetail({ id }: { id: string }) {
             </table>
           </div>
           <div>
-            <h2 className="text-lg font-bold mb-3">About this item</h2>
+            <h2 className="text-lg font-bold mb-3">{t("detail.aboutItem")}</h2>
             {points.length > 0 && (
               <ul className="list-disc pl-5 space-y-1.5 text-sm text-slate-800 mb-3">
                 {points.map((point, i) => (
@@ -320,14 +326,14 @@ export default function ProductDetail({ id }: { id: string }) {
             {product.description ? (
               <p className="text-sm leading-relaxed text-slate-700 whitespace-pre-line">{product.description}</p>
             ) : points.length === 0 ? (
-              <p className="text-sm text-slate-500">ಈ ಉತ್ಪನ್ನದ ಬಳಕೆ ಮತ್ತು ಘಟಕಾಂಶಗಳ ವಿವರಕ್ಕೆ ಕರೆ ಮಾಡಿ: 7795198610</p>
+              <p className="text-sm text-slate-500">{t("detail.noDescription")}</p>
             ) : null}
           </div>
         </section>
 
         {product.video_url && (
           <section className="md:col-span-2 bg-white md:rounded-2xl md:border px-4 py-5 md:p-6 border-t">
-            <h2 className="text-lg font-bold mb-3">ಉತ್ಪನ್ನ ವಿಡಿಯೋ</h2>
+            <h2 className="text-lg font-bold mb-3">{t("detail.video")}</h2>
             <div className="aspect-video w-full rounded-xl overflow-hidden bg-black">
               {youTubeId ? (
                 <iframe
@@ -347,7 +353,7 @@ export default function ProductDetail({ id }: { id: string }) {
         {/* You might also like */}
         {related.length > 0 && (
           <section className="md:col-span-2 bg-white md:rounded-2xl md:border px-4 py-5 md:p-6 border-t">
-            <h2 className="text-lg font-bold mb-3">You might also like</h2>
+            <h2 className="text-lg font-bold mb-3">{t("detail.related")}</h2>
             <div className="flex gap-3 overflow-x-auto snap-x pb-2 -mx-1 px-1">
               {related.map((p) => {
                 const photo = getProductImages(p)[0];
@@ -368,20 +374,20 @@ export default function ProductDetail({ id }: { id: string }) {
                       </Link>
                       <div className="flex items-baseline gap-1.5">
                         <span className="font-bold text-sm">{formatRupees(Number(p.price))}</span>
-                        {off > 0 && <span className="text-[10px] font-bold text-red-600">{off}% OFF</span>}
+                        {off > 0 && <span className="text-[10px] font-bold text-red-600">{t("price.off", { n: off })}</span>}
                       </div>
                       {off > 0 && <span className="text-[10px] text-slate-400 line-through -mt-1">{formatRupees(Number(p.mrp))}</span>}
                       <button
                         onClick={() =>
                           requireLogin(
                             () => addItem({ id: p.id, name: p.name, price: Number(p.price), weight: p.weight, image: photo ?? null }),
-                            "ಕಾರ್ಟ್‌ಗೆ ಸೇರಿಸಲು ಲಾಗಿನ್ ಮಾಡಿ"
+                            t("login.reasonCart")
                           )
                         }
                         disabled={!isInStock(p)}
                         className="mt-auto bg-amber-400 hover:bg-amber-500 text-slate-900 text-[11px] font-bold py-1.5 rounded-full transition disabled:bg-slate-200 disabled:text-slate-500"
                       >
-                        {isInStock(p) ? "Add to Cart" : "Out of Stock"}
+                        {isInStock(p) ? t("btn.addToCart") : t("stock.out")}
                       </button>
                     </div>
                   </div>

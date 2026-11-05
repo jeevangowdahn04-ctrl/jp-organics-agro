@@ -6,6 +6,7 @@ import { MessageCircle, Minus, Plus, ShoppingCart, Sprout, Trash2, X } from "luc
 import { formatRupees, whatsappOrderUrl } from "@/lib/whatsapp";
 import { MAX_QUANTITY, useCart } from "./CartProvider";
 import { useCustomer } from "../customer/CustomerProvider";
+import { useLanguage } from "../i18n/LanguageProvider";
 
 // ಬಲಭಾಗದಿಂದ ಜಾರಿ ಬರುವ ಕಾರ್ಟ್ ಪ್ಯಾನೆಲ್
 export default function CartDrawer() {
@@ -24,11 +25,12 @@ export default function CartDrawer() {
   }, [isOpen, closeCart]);
 
   const { requireLogin } = useCustomer();
+  const { t } = useLanguage();
   const orderViaWhatsApp = () =>
     requireLogin((customer) => {
       const lines = items.map((i) => ({ name: i.name, price: i.price, quantity: i.quantity, weight: i.weight }));
       window.open(whatsappOrderUrl(lines, customer), "_blank", "noopener,noreferrer");
-    }, "ಆರ್ಡರ್ ಕಳುಹಿಸಲು ಲಾಗಿನ್ ಮಾಡಿ");
+    }, t("login.reasonOrder"));
 
   return (
     <div className={`fixed inset-0 z-[90] ${isOpen ? "" : "pointer-events-none"}`} aria-hidden={!isOpen}>
@@ -40,17 +42,17 @@ export default function CartDrawer() {
       <aside
         role="dialog"
         aria-modal="true"
-        aria-label="ಶಾಪಿಂಗ್ ಕಾರ್ಟ್"
+        aria-label={t("cart.title")}
         className={`absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl flex flex-col transition-transform duration-300 ease-out ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b">
           <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-            <ShoppingCart className="w-5 h-5 text-emerald-600" /> ನಿಮ್ಮ ಕಾರ್ಟ್
-            <span className="text-sm font-semibold text-slate-500">({count} ವಸ್ತು)</span>
+            <ShoppingCart className="w-5 h-5 text-emerald-600" /> {t("cart.title")}
+            <span className="text-sm font-semibold text-slate-500">{t("cart.items", { n: count })}</span>
           </h2>
-          <button onClick={closeCart} aria-label="ಕಾರ್ಟ್ ಮುಚ್ಚಿ" className="p-2 rounded-full hover:bg-slate-100 text-slate-500">
+          <button onClick={closeCart} aria-label={t("cart.close")} className="p-2 rounded-full hover:bg-slate-100 text-slate-500">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -60,10 +62,10 @@ export default function CartDrawer() {
             <div className="w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center">
               <ShoppingCart className="w-8 h-8 text-emerald-600" />
             </div>
-            <p className="font-semibold text-slate-700">ನಿಮ್ಮ ಕಾರ್ಟ್ ಖಾಲಿಯಾಗಿದೆ</p>
-            <p className="text-sm text-slate-500">ಉತ್ಪನ್ನಗಳ ಮೇಲೆ &quot;Add to Cart&quot; ಒತ್ತಿ ಸೇರಿಸಿ.</p>
+            <p className="font-semibold text-slate-700">{t("cart.empty")}</p>
+            <p className="text-sm text-slate-500">{t("cart.emptyHint")}</p>
             <button onClick={closeCart} className="mt-2 text-sm font-semibold text-emerald-700 hover:underline">
-              ಶಾಪಿಂಗ್ ಮುಂದುವರಿಸಿ →
+              {t("cart.continue")} →
             </button>
           </div>
         ) : (
@@ -97,18 +99,18 @@ export default function CartDrawer() {
                       <div className="flex items-center border border-slate-300 rounded-full overflow-hidden">
                         <button
                           onClick={() => (item.quantity <= 1 ? removeItem(item.id) : setQuantity(item.id, item.quantity - 1))}
-                          aria-label={item.quantity <= 1 ? `${item.name} ತೆಗೆದುಹಾಕಿ` : "ಕ್ವಾಂಟಿಟಿ ಕಡಿಮೆ ಮಾಡಿ"}
+                          aria-label={item.quantity <= 1 ? t("cart.remove", { name: item.name }) : t("detail.qtyLess")}
                           className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 text-slate-700"
                         >
                           {item.quantity <= 1 ? <Trash2 className="w-4 h-4" /> : <Minus className="w-4 h-4" />}
                         </button>
-                        <span className="w-8 text-center text-sm font-bold" aria-label="ಕ್ವಾಂಟಿಟಿ">
+                        <span className="w-8 text-center text-sm font-bold" aria-label={t("cart.qty")}>
                           {item.quantity}
                         </span>
                         <button
                           onClick={() => setQuantity(item.id, item.quantity + 1)}
                           disabled={item.quantity >= MAX_QUANTITY}
-                          aria-label="ಕ್ವಾಂಟಿಟಿ ಹೆಚ್ಚಿಸಿ"
+                          aria-label={t("detail.qtyMore")}
                           className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 text-slate-700 disabled:opacity-40"
                         >
                           <Plus className="w-4 h-4" />
@@ -123,7 +125,7 @@ export default function CartDrawer() {
 
             <div className="border-t px-5 py-4 space-y-3 bg-slate-50">
               <div className="flex justify-between items-baseline">
-                <span className="text-sm text-slate-600">ಒಟ್ಟು ({count} ವಸ್ತು):</span>
+                <span className="text-sm text-slate-600">{t("cart.total", { n: count })}</span>
                 <span className="text-xl font-extrabold text-slate-900">{formatRupees(total)}</span>
               </div>
               <button
@@ -131,17 +133,17 @@ export default function CartDrawer() {
                 onClick={orderViaWhatsApp}
                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-full flex items-center justify-center gap-2 transition shadow"
               >
-                <MessageCircle className="w-5 h-5" /> Order via WhatsApp
+                <MessageCircle className="w-5 h-5" /> {t("cart.order")}
               </button>
               <div className="flex justify-between text-xs">
                 <button onClick={closeCart} className="font-semibold text-emerald-700 hover:underline">
-                  ← ಶಾಪಿಂಗ್ ಮುಂದುವರಿಸಿ
+                  ← {t("cart.continue")}
                 </button>
                 <button
-                  onClick={() => window.confirm("ಕಾರ್ಟ್‌ನ ಎಲ್ಲಾ ವಸ್ತುಗಳನ್ನು ತೆಗೆದುಹಾಕಬೇಕೆ?") && clearCart()}
+                  onClick={() => window.confirm(t("cart.clearConfirm")) && clearCart()}
                   className="text-slate-500 hover:text-red-600"
                 >
-                  ಕಾರ್ಟ್ ಖಾಲಿ ಮಾಡಿ
+                  {t("cart.clear")}
                 </button>
               </div>
             </div>

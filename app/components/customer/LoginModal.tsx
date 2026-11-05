@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { Leaf, Phone, User, X } from "lucide-react";
 import { Customer, PHONE_PATTERN } from "./CustomerProvider";
+import { useLanguage } from "../i18n/LanguageProvider";
 
 // ಲಾಗಿನ್ ಪಾಪ್-ಅಪ್: ಹೆಸರು + +91 ಮೊಬೈಲ್ ನಂಬರ್ → Continue
 export default function LoginModal({
@@ -17,6 +18,7 @@ export default function LoginModal({
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
+  const { t } = useLanguage();
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -33,8 +35,8 @@ export default function LoginModal({
     e.preventDefault();
     const cleanName = name.trim().replace(/\s+/g, " ");
     const cleanPhone = phone.replace(/\D/g, "").replace(/^91(?=\d{10}$)/, "");
-    if (cleanName.length < 2) return setError("ದಯವಿಟ್ಟು ನಿಮ್ಮ ಹೆಸರು ನಮೂದಿಸಿ.");
-    if (!PHONE_PATTERN.test(cleanPhone)) return setError("ಸರಿಯಾದ 10 ಅಂಕಿಯ ಮೊಬೈಲ್ ನಂಬರ್ ನಮೂದಿಸಿ (6, 7, 8 ಅಥವಾ 9 ರಿಂದ ಆರಂಭ).");
+    if (cleanName.length < 2) return setError(t("login.errName"));
+    if (!PHONE_PATTERN.test(cleanPhone)) return setError(t("login.errPhone"));
     onLogin({ name: cleanName.slice(0, 60), phone: cleanPhone });
   };
 
@@ -48,19 +50,19 @@ export default function LoginModal({
         className="relative w-full sm:max-w-sm bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden"
       >
         <div className="bg-gradient-to-r from-emerald-700 to-emerald-900 text-white px-5 pt-5 pb-6">
-          <button onClick={onClose} aria-label="ಮುಚ್ಚಿ" className="absolute top-3 right-3 p-1.5 rounded-full hover:bg-white/15">
+          <button onClick={onClose} aria-label={t("btn.close")} className="absolute top-3 right-3 p-1.5 rounded-full hover:bg-white/15">
             <X className="w-5 h-5" />
           </button>
           <div className="w-11 h-11 rounded-full bg-white/15 flex items-center justify-center mb-3">
             <Leaf className="w-6 h-6" />
           </div>
-          <h2 id="login-title" className="text-lg font-bold">Login / Sign up</h2>
-          <p className="text-sm text-emerald-100">{reason || "ನಿಮ್ಮ ಆರ್ಡರ್‌ಗಾಗಿ ಮೊಬೈಲ್ ನಂಬರ್ ನಮೂದಿಸಿ"}</p>
+          <h2 id="login-title" className="text-lg font-bold">{t("login.title")}</h2>
+          <p className="text-sm text-emerald-100">{reason || t("login.subtitle")}</p>
         </div>
 
         <form onSubmit={submit} className="px-5 py-5 space-y-4">
           <div>
-            <label htmlFor="customer-name" className="block text-xs font-semibold text-slate-600 mb-1">ನಿಮ್ಮ ಹೆಸರು</label>
+            <label htmlFor="customer-name" className="block text-xs font-semibold text-slate-600 mb-1">{t("login.name")}</label>
             <div className="flex items-center border border-slate-300 rounded-lg focus-within:border-emerald-600 focus-within:ring-2 focus-within:ring-emerald-100">
               <User className="w-4 h-4 text-slate-400 ml-3" />
               <input
@@ -72,14 +74,14 @@ export default function LoginModal({
                   setName(e.target.value);
                   setError("");
                 }}
-                placeholder="ಉದಾ: ರಮೇಶ್"
+                placeholder={t("login.namePlaceholder")}
                 className="flex-1 px-3 py-2.5 rounded-lg outline-none text-sm"
               />
             </div>
           </div>
 
           <div>
-            <label htmlFor="customer-phone" className="block text-xs font-semibold text-slate-600 mb-1">ಮೊಬೈಲ್ ನಂಬರ್</label>
+            <label htmlFor="customer-phone" className="block text-xs font-semibold text-slate-600 mb-1">{t("login.phone")}</label>
             <div className="flex items-center border border-slate-300 rounded-lg focus-within:border-emerald-600 focus-within:ring-2 focus-within:ring-emerald-100">
               <span className="flex items-center gap-1 pl-3 pr-2 text-sm font-semibold text-slate-700 border-r border-slate-200">
                 <Phone className="w-4 h-4 text-slate-400" /> +91
@@ -107,11 +109,9 @@ export default function LoginModal({
             type="submit"
             className="w-full bg-amber-400 hover:bg-amber-500 active:bg-amber-600 text-slate-900 font-bold py-3 rounded-full transition shadow-sm"
           >
-            Continue
+            {t("login.continue")}
           </button>
-          <p className="text-[11px] text-slate-500 text-center leading-relaxed">
-            ನಿಮ್ಮ ಹೆಸರು ಮತ್ತು ನಂಬರ್ ಈ ಬ್ರೌಸರ್‌ನಲ್ಲಿ ಮಾತ್ರ ಉಳಿಯುತ್ತದೆ ಮತ್ತು ನೀವು ಕಳುಹಿಸುವ WhatsApp ಆರ್ಡರ್‌ನಲ್ಲಿ ಸೇರುತ್ತದೆ.
-          </p>
+          <p className="text-[11px] text-slate-500 text-center leading-relaxed">{t("login.privacy")}</p>
         </form>
       </div>
     </div>

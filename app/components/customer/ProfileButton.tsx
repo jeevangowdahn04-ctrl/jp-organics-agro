@@ -3,12 +3,14 @@
 import React, { useEffect, useRef, useState } from "react";
 import { LogOut, Phone, User } from "lucide-react";
 import { useCustomer } from "./CustomerProvider";
+import { useLanguage } from "../i18n/LanguageProvider";
 
 const formatPhone = (p: string) => `+91 ${p.slice(0, 5)} ${p.slice(5)}`;
 
 // ಹೆಡರ್‌ನ ಪ್ರೊಫೈಲ್ / ಲಾಗಿನ್ ಐಕಾನ್
 export default function ProfileButton({ className = "", dark = false }: { className?: string; dark?: boolean }) {
   const { customer, openLogin, logout } = useCustomer();
+  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -31,11 +33,11 @@ export default function ProfileButton({ className = "", dark = false }: { classN
       <button
         type="button"
         onClick={openLogin}
-        aria-label="Login"
+        aria-label={t("login.button")}
         className={`flex items-center gap-1.5 h-10 px-3 rounded-full text-sm font-semibold transition ${base} ${className}`}
       >
         <User className="w-5 h-5" />
-        <span className="hidden sm:inline">Login</span>
+        <span className="hidden sm:inline">{t("login.button")}</span>
       </button>
     );
   }
@@ -47,7 +49,7 @@ export default function ProfileButton({ className = "", dark = false }: { classN
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`ಪ್ರೊಫೈಲ್: ${customer.name}`}
+        aria-label={t("profile.label", { name: customer.name })}
         className={`flex items-center gap-2 h-10 pl-1 pr-3 rounded-full text-sm font-semibold transition ${base}`}
       >
         <span className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold">
@@ -72,7 +74,7 @@ export default function ProfileButton({ className = "", dark = false }: { classN
             }}
             className="w-full flex items-center gap-2 px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-50"
           >
-            <LogOut className="w-4 h-4" /> Logout
+            <LogOut className="w-4 h-4" /> {t("profile.logout")}
           </button>
         </div>
       )}

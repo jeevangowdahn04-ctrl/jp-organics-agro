@@ -4,6 +4,7 @@ import React, { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, Expand } from "lucide-react";
 import ImageLightbox from "./ImageLightbox";
+import { useLanguage } from "./i18n/LanguageProvider";
 
 interface ImageCarouselProps {
   images: string[];
@@ -20,6 +21,7 @@ interface ImageCarouselProps {
 // ಫೋಟೋಗಳನ್ನು ಅಕ್ಕಪಕ್ಕ swipe / scroll ಮಾಡುವ ಗ್ಯಾಲರಿ (CSS scroll-snap, ಮೊಬೈಲ್‌ನಲ್ಲಿ ಬೆರಳಿನಿಂದ swipe)
 export default function ImageCarousel({ images, alt, className = "", showThumbnails = false, href, overlay }: ImageCarouselProps) {
   const router = useRouter();
+  const { t } = useLanguage();
   const trackRef = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -75,7 +77,7 @@ export default function ImageCarousel({ images, alt, className = "", showThumbna
         <button
           type="button"
           onClick={(e) => stop(e, () => setLightboxIndex(index))}
-          aria-label="ಫೋಟೋ ದೊಡ್ಡದಾಗಿ ನೋಡಿ"
+          aria-label={t("gallery.expand")}
           className="absolute bottom-2 right-2 w-7 h-7 rounded-full bg-white/85 hover:bg-white shadow flex items-center justify-center text-slate-700 transition"
         >
           <Expand className="w-3.5 h-3.5" />
@@ -85,7 +87,7 @@ export default function ImageCarousel({ images, alt, className = "", showThumbna
           <>
             <button
               type="button"
-              aria-label="ಹಿಂದಿನ ಫೋಟೋ"
+              aria-label={t("gallery.prev")}
               onClick={(e) => stop(e, () => goTo(index - 1))}
               className="absolute left-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white/85 hover:bg-white shadow flex items-center justify-center text-slate-700 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition"
             >
@@ -93,7 +95,7 @@ export default function ImageCarousel({ images, alt, className = "", showThumbna
             </button>
             <button
               type="button"
-              aria-label="ಮುಂದಿನ ಫೋಟೋ"
+              aria-label={t("gallery.next")}
               onClick={(e) => stop(e, () => goTo(index + 1))}
               className="absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white/85 hover:bg-white shadow flex items-center justify-center text-slate-700 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition"
             >
@@ -107,7 +109,7 @@ export default function ImageCarousel({ images, alt, className = "", showThumbna
                 <button
                   key={i}
                   type="button"
-                  aria-label={`ಫೋಟೋ ${i + 1}`}
+                  aria-label={t("gallery.photo", { n: i + 1 })}
                   onClick={(e) => stop(e, () => goTo(i))}
                   className={`h-1.5 rounded-full transition-all ${i === index ? "w-4 bg-white" : "w-1.5 bg-white/60"}`}
                 />
@@ -124,7 +126,7 @@ export default function ImageCarousel({ images, alt, className = "", showThumbna
               key={src + i}
               type="button"
               onClick={() => goTo(i)}
-              aria-label={`ಫೋಟೋ ${i + 1} ತೋರಿಸಿ`}
+              aria-label={t("gallery.show", { n: i + 1 })}
               className={`flex-none w-16 h-16 rounded-lg overflow-hidden border-2 transition ${i === index ? "border-emerald-600" : "border-transparent opacity-70 hover:opacity-100"}`}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}

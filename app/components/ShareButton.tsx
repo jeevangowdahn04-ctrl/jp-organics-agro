@@ -2,10 +2,12 @@
 
 import React, { useState } from "react";
 import { Check, Share2 } from "lucide-react";
+import { useLanguage } from "./i18n/LanguageProvider";
 
 // ಪ್ರಾಡಕ್ಟ್ ಲಿಂಕ್ ಹಂಚುವುದು: ಮೊಬೈಲ್‌ನಲ್ಲಿ ಫೋನ್‌ನ share ಮೆನು (WhatsApp ಇತ್ಯಾದಿ), ಇಲ್ಲದಿದ್ದರೆ ಲಿಂಕ್ ಕಾಪಿ
 export default function ShareButton({ title, className = "" }: { title: string; className?: string }) {
   const [copied, setCopied] = useState(false);
+  const { t } = useLanguage();
 
   const share = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -24,7 +26,7 @@ export default function ShareButton({ title, className = "" }: { title: string; 
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      window.prompt("ಈ ಲಿಂಕ್ ಕಾಪಿ ಮಾಡಿ:", url);
+      window.prompt(t("share.prompt"), url);
     }
   };
 
@@ -32,11 +34,11 @@ export default function ShareButton({ title, className = "" }: { title: string; 
     <button
       type="button"
       onClick={share}
-      aria-label={copied ? "ಲಿಂಕ್ ಕಾಪಿ ಆಗಿದೆ" : "ಈ ಉತ್ಪನ್ನವನ್ನು ಹಂಚಿಕೊಳ್ಳಿ (Share)"}
+      aria-label={copied ? t("share.copied") : t("share.label")}
       className={`flex items-center gap-1 rounded-full bg-white/90 hover:bg-white shadow text-slate-700 text-xs font-semibold transition ${className}`}
     >
       {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Share2 className="w-4 h-4" />}
-      {copied && <span className="pr-1">Copied</span>}
+      {copied && <span className="pr-1">{t("share.copied")}</span>}
     </button>
   );
 }
