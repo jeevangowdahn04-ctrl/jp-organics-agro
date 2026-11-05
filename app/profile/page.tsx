@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, Camera, Sprout, Check, CheckCircle2, ChevronRight, Loader2, LogOut, MapPin, MessageCircle, Package, Pencil, Phone, User } from "lucide-react";
+import { AlertCircle, Camera, Image as ImageIcon, Sprout, Trash2, Check, CheckCircle2, ChevronRight, Loader2, LogOut, MapPin, MessageCircle, Package, Pencil, Phone, User } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import AdminLoginSection from "../components/admin/AdminLoginSection";
 import { useLanguage } from "../components/i18n/LanguageProvider";
@@ -12,8 +12,8 @@ import { WHATSAPP_NUMBER } from "@/lib/whatsapp";
 import { useOrderHistory } from "@/lib/orderHistory";
 import { ADDRESS_FIELDS, EMPTY_ADDRESS, PINCODE_PATTERN, type DeliveryAddress } from "@/lib/address";
 import { lookupPincode } from "@/lib/pincode";
-import { fileToAvatar } from "@/lib/avatar";
 import Avatar from "../components/customer/Avatar";
+import AvatarEditor from "../components/customer/AvatarEditor";
 import ProfileView from "../components/community/ProfileView";
 import { syncProfile } from "../community/actions";
 import { communityError } from "@/lib/community";
@@ -277,48 +277,94 @@ function ProfileForm({ initial, onSave, onCancel }: { initial: Customer | null; 
 }
 
 // ಪ್ರೊಫೈಲ್ ಫೋಟೋ: ಕ್ಯಾಮೆರಾ ಬಟನ್ ಒತ್ತಿದರೆ ಫೋನ್‌ನ ಕ್ಯಾಮೆರಾ / ಗ್ಯಾಲರಿ ಆಯ್ಕೆ; ಚಿಕ್ಕದಾಗಿಸಿ ಬ್ರೌಸರ್‌ನಲ್ಲಿ ಉಳಿಸುವುದು
+// ಪ್ರೊಫೈಲ್ ಫೋಟೋ: ಪೆನ್ಸಿಲ್ ಒತ್ತಿದರೆ ಬದಲಾಯಿಸಿ / ಕ್ಯಾಮೆರಾ / ತೆಗೆದುಹಾಕಿ ಮೆನು; ಹೊಸ ಫೋಟೋ ಎಡಿಟರ್‌ನಲ್ಲಿ ಕ್ರಾಪ್ ಆಗುತ್ತದೆ
 function ProfilePhoto({ customer, onChange }: { customer: Customer; onChange: (avatar: string | null) => void }) {
   const { t } = useLanguage();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [busy, setBusy] = useState(false);
+  const galleryRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menu, setMenu] = useState(false);
+  const [editing, setEditing] = useState<File | null>(null);
   const [error, setError] = useState("");
 
-  const pick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ಮೆನುವಿನ ಹೊರಗೆ ಒತ್ತಿದರೆ ಮುಚ್ಚುವುದು
+  useEffect(() => {
+    if (!menu) return;
+    const close = (e: PointerEvent) => {
+      if (!menuRef.current?.contains(e.target as Node)) setMenu(false);
+    };
+    window.addEventListener("pointerdown", close);
+    return () => window.removeEventListener("pointerdown", close);
+  }, [menu]);
+
+  const pick = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    if (!file.type.startsWith("image/")) return setError(t("photo.error"));
     setError("");
-    setBusy(true);
-    try {
-      onChange(await fileToAvatar(file));
-    } catch {
-      setError(t("photo.error"));
-    } finally {
-      setBusy(false);
-    }
+    setEditing(file);
   };
+
+  const choose = (ref: React.RefObject<HTMLInputElement | null>) => {
+    setMenu(false);
+    ref.current?.click();
+  };
+
+  const item = "w-full flex items-center gap-2.5 px-4 py-3 text-sm text-left hover:bg-slate-50";
 
   return (
     <div className="flex-none flex flex-col items-center gap-1">
-      <div className="relative">
-        <Avatar customer={customer} className="w-16 h-16 text-2xl" />
+      <div className="relative" ref={menuRef}>
+        <button type="button" onClick={() => setMenu((m) => !m)} aria-label={t("photo.edit")} aria-expanded={menu} className="block rounded-full">
+          <Avatar customer={customer} className="w-16 h-16 text-2xl" />
+        </button>
         <button
           type="button"
-          onClick={() => inputRef.current?.click()}
-          disabled={busy}
-          aria-label={customer.avatar ? t("photo.change") : t("photo.add")}
-          className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-white border border-slate-300 shadow flex items-center justify-center text-slate-700 hover:bg-emerald-50"
+          onClick={() => setMenu((m) => !m)}
+          aria-label={t("photo.edit")}
+          aria-expanded={menu}
+          className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-emerald-600 border-2 border-white shadow flex items-center justify-center text-white hover:bg-emerald-700"
         >
-          {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
+          <Pencil className="w-3.5 h-3.5" />
         </button>
-        <input ref={inputRef} type="file" accept="image/*" onChange={pick} className="hidden" aria-hidden="true" tabIndex={-1} />
+        {menu && (
+          <div role="menu" className="absolute left-0 top-full mt-2 z-30 bg-white border rounded-xl shadow-xl overflow-hidden min-w-52">
+            <button type="button" role="menuitem" onClick={() => choose(galleryRef)} className={item}>
+              <ImageIcon className="w-4 h-4 text-emerald-700" /> {customer.avatar ? t("photo.changeShort") : t("photo.add")}
+            </button>
+            <button type="button" role="menuitem" onClick={() => choose(cameraRef)} className={item}>
+              <Camera className="w-4 h-4 text-emerald-700" /> {t("photo.camera")}
+            </button>
+            {customer.avatar && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMenu(false);
+                  if (window.confirm(t("photo.confirmRemove"))) onChange(null);
+                }}
+                className={`${item} text-red-600 hover:bg-red-50`}
+              >
+                <Trash2 className="w-4 h-4" /> {t("photo.remove")}
+              </button>
+            )}
+          </div>
+        )}
+        <input ref={galleryRef} type="file" accept="image/*" onChange={pick} className="hidden" aria-hidden="true" tabIndex={-1} />
+        <input ref={cameraRef} type="file" accept="image/*" capture="user" onChange={pick} className="hidden" aria-hidden="true" tabIndex={-1} />
       </div>
-      {customer.avatar && (
-        <button type="button" onClick={() => onChange(null)} className="text-[10px] text-slate-500 hover:text-red-600">
-          {t("photo.remove")}
-        </button>
-      )}
       {error && <p className="text-[10px] text-red-600 max-w-20 text-center">{error}</p>}
+      {editing && (
+        <AvatarEditor
+          file={editing}
+          onCancel={() => setEditing(null)}
+          onSave={(dataUrl) => {
+            setEditing(null);
+            onChange(dataUrl);
+          }}
+        />
+      )}
     </div>
   );
 }
