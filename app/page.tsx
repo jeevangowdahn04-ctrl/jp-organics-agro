@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { getProductImages, getYouTubeId } from "@/lib/media";
 import ImageCarousel from "./components/ImageCarousel";
 import CartButton from "./components/cart/CartButton";
@@ -33,6 +34,7 @@ export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const { addItem } = useCart();
+  const router = useRouter();
   const [videoProduct, setVideoProduct] = useState<Product | null>(null);
   const videoYouTubeId = videoProduct?.video_url ? getYouTubeId(videoProduct.video_url) : null;
 
@@ -217,24 +219,30 @@ export default function Home() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {products.map((item) => (
-              <div 
-                key={item.id} 
-                className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-lg transition flex flex-col justify-between"
+              <div
+                key={item.id}
+                // ಕಾರ್ಡ್‌ನ ಎಲ್ಲಿ ಕ್ಲಿಕ್ ಮಾಡಿದರೂ ವಿವರ ಪೇಜ್ (ಒಳಗಿನ ಬಟನ್/ಲಿಂಕ್‌ಗಳನ್ನು ಬಿಟ್ಟು)
+                onClick={(e) => {
+                  if (!(e.target as HTMLElement).closest("a, button")) router.push(`/products/${item.id}`);
+                }}
+                className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-lg transition flex flex-col justify-between cursor-pointer"
               >
                 <div className="p-4">
                   <div className="flex justify-between items-start mb-3">
                     <span className="text-[11px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded">
                       {item.tag || "Organic"}
                     </span>
-                    <div className="flex items-center text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
-                      <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400 mr-1" />
-                      {item.rating || 4.8}
-                    </div>
+                    {item.rating ? (
+                      <div className="flex items-center text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400 mr-1" />
+                        {item.rating}
+                      </div>
+                    ) : null}
                   </div>
 
                   <div className="relative h-44 bg-slate-100 rounded-lg flex items-center justify-center mb-4 overflow-hidden">
                     {getProductImages(item).length > 0 ? (
-                      <ImageCarousel images={getProductImages(item)} alt={item.name} className="w-full h-full" />
+                      <ImageCarousel images={getProductImages(item)} alt={item.name} href={`/products/${item.id}`} className="w-full h-full" />
                     ) : (
                       <Link href={`/products/${item.id}`} aria-label={item.name} className="w-full h-full flex items-center justify-center">
                         <Sprout className="w-12 h-12 text-emerald-500" />

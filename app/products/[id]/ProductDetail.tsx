@@ -2,12 +2,13 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, Loader2, Minus, Phone, Plus, ShieldCheck, ShoppingCart, Sprout, Truck, Zap } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Loader2, MapPin, Minus, Phone, Plus, ShieldCheck, ShoppingCart, Sprout, Star, Truck, Zap } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getProductImages, getYouTubeId } from "@/lib/media";
 import { formatRupees, whatsappOrderUrl } from "@/lib/whatsapp";
 import ImageCarousel from "../../components/ImageCarousel";
 import CartButton from "../../components/cart/CartButton";
+import ShareButton from "../../components/ShareButton";
 import { MAX_QUANTITY, useCart } from "../../components/cart/CartProvider";
 
 interface Product {
@@ -19,6 +20,7 @@ interface Product {
   mrp?: number;
   weight?: string;
   tag?: string;
+  rating?: number | null;
   image_url?: string | null;
   image_urls?: string[] | null;
   video_url?: string | null;
@@ -32,7 +34,27 @@ async function loadProduct(id: string): Promise<LoadState> {
     supabase.from("products").select("*").neq("id", id).order("id", { ascending: false }).limit(12),
   ]);
   if (error || !data) return { status: "missing" };
-  return { status: "ready", product: data, related: others ?? [] };
+  // ಅದೇ ವಿಭಾಗದ (category) ಉತ್ಪನ್ನಗಳು ಮೊದಲು
+  const related = [...(others ?? [])].sort(
+    (a: Product, b: Product) => Number(b.category === data.category) - Number(a.category === data.category)
+  );
+  return { status: "ready", product: data, related };
+}
+
+const BRAND = "JP Organics";
+
+function Stars({ rating }: { rating: number }) {
+  return (
+    <span className="flex items-center gap-1" aria-label={`${rating} / 5 ರೇಟಿಂಗ್`}>
+      <span className="text-sm font-semibold text-slate-700">{rating.toFixed(1)}</span>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <Star
+          key={n}
+          className={`w-4 h-4 ${n <= Math.round(rating) ? "fill-amber-400 text-amber-400" : "text-slate-300"}`}
+        />
+      ))}
+    </span>
+  );
 }
 
 const discountOf = (p: Product) =>
@@ -108,11 +130,13 @@ export default function ProductDetail({ id }: { id: string }) {
               images={images}
               alt={product.name}
               showThumbnails
+              overlay={<ShareButton title={product.name} className="absolute top-2 left-2 z-10 p-2" />}
               className="w-full [&>div:first-child]:aspect-square [&>div:first-child]:md:rounded-xl [&>div:first-child]:overflow-hidden [&>div:first-child]:bg-white"
             />
           ) : (
-            <div className="aspect-square md:rounded-xl bg-slate-100 flex items-center justify-center">
+            <div className="relative aspect-square md:rounded-xl bg-slate-100 flex items-center justify-center">
               <Sprout className="w-20 h-20 text-emerald-500" />
+              <ShareButton title={product.name} className="absolute top-2 left-2 p-2" />
             </div>
           )}
         </section>
@@ -126,8 +150,17 @@ export default function ProductDetail({ id }: { id: string }) {
             </span>
           </div>
 
+          <Link href="/" className="text-sm text-emerald-700 hover:underline block -mb-2">
+            Visit the {BRAND} Store
+          </Link>
           <h1 className="text-xl md:text-2xl font-bold leading-snug">{product.name}</h1>
-          {product.weight && <p className="text-sm text-slate-500 -mt-2">ಪ್ಯಾಕಿಂಗ್: {product.weight}</p>}
+          <div className="flex items-center gap-3 flex-wrap -mt-2 text-sm">
+            <span className="text-slate-500">
+              Brand: <span className="font-semibold text-slate-800">{BRAND}</span>
+            </span>
+            {product.weight && <span className="text-slate-500">· ಪ್ಯಾಕಿಂಗ್: {product.weight}</span>}
+            {product.rating ? <Stars rating={Number(product.rating)} /> : null}
+          </div>
 
           <div className="border-t pt-4">
             <div className="flex items-baseline gap-2 flex-wrap">
@@ -142,9 +175,23 @@ export default function ProductDetail({ id }: { id: string }) {
             <p className="text-xs text-slate-500 mt-1">ಎಲ್ಲಾ ತೆರಿಗೆಗಳು ಸೇರಿ</p>
           </div>
 
-          <p className="text-lg font-semibold text-emerald-700 flex items-center gap-1.5">
-            <CheckCircle2 className="w-5 h-5" /> In Stock
-          </p>
+          <div className="rounded-xl border border-slate-200 p-3 space-y-2 text-sm">
+            <p className="text-lg font-semibold text-emerald-700 flex items-center gap-1.5">
+              <CheckCircle2 className="w-5 h-5" /> In stock
+            </p>
+            <p className="flex items-start gap-2 text-slate-700">
+              <Truck className="w-4 h-4 mt-0.5 text-slate-500 flex-none" />
+              <span>
+                <b>ಡೆಲಿವರಿ:</b> ಕರ್ನಾಟಕದಾದ್ಯಂತ ಮನೆಬಾಗಿಲಿಗೆ ಡೆಲಿವರಿ ಲಭ್ಯ. ಡೆಲಿವರಿ ಶುಲ್ಕ ಮತ್ತು ದಿನಾಂಕವನ್ನು ಆರ್ಡರ್ ಮಾಡುವಾಗ WhatsApp ನಲ್ಲಿ ತಿಳಿಸಲಾಗುತ್ತದೆ.
+              </span>
+            </p>
+            <p className="flex items-start gap-2 text-slate-700">
+              <MapPin className="w-4 h-4 mt-0.5 text-slate-500 flex-none" />
+              <span>
+                <b>Ships from & sold by:</b> {BRAND}, ಚನ್ನರಾಯಪಟ್ಟಣ, ಹಾಸನ ಜಿಲ್ಲೆ
+              </span>
+            </p>
+          </div>
 
           {/* ಕ್ವಾಂಟಿಟಿ ಸೆಲೆಕ್ಟರ್ */}
           <div className="flex items-center gap-3">
@@ -198,12 +245,40 @@ export default function ProductDetail({ id }: { id: string }) {
             <a href="tel:7795198610" className="flex flex-col items-center gap-1 hover:text-emerald-700"><Phone className="w-5 h-5 text-emerald-700" /> ಕೃಷಿ ಸಲಹೆ</a>
           </div>
 
-          {product.description && (
-            <div>
-              <h2 className="font-bold mb-1">ಉತ್ಪನ್ನದ ವಿವರ</h2>
+        </section>
+
+        {/* Product details & Description */}
+        <section className="md:col-span-2 bg-white md:rounded-2xl md:border px-4 py-5 md:p-6 border-t grid md:grid-cols-2 gap-6">
+          <div>
+            <h2 className="text-lg font-bold mb-3">Product details</h2>
+            <table className="w-full text-sm">
+              <tbody className="divide-y divide-slate-100">
+                {[
+                  ["Brand", BRAND],
+                  ["ಉತ್ಪನ್ನದ ಹೆಸರು", product.name],
+                  ["ವಿಭಾಗ (Category)", product.category || "ಕೃಷಿ ಪೋಷಕಾಂಶ"],
+                  ["ಪ್ಯಾಕಿಂಗ್ (Net quantity)", product.weight],
+                  ["ಪ್ರಕಾರ (Type)", product.tag || "Organic"],
+                  ["ಮಾರಾಟಗಾರರು", `${BRAND}, ಚನ್ನರಾಯಪಟ್ಟಣ`],
+                ]
+                  .filter(([, v]) => v)
+                  .map(([label, value]) => (
+                    <tr key={label}>
+                      <th scope="row" className="text-left font-semibold text-slate-600 py-2 pr-4 align-top w-2/5">{label}</th>
+                      <td className="py-2 text-slate-800">{value}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+          <div>
+            <h2 className="text-lg font-bold mb-3">About this item</h2>
+            {product.description ? (
               <p className="text-sm leading-relaxed text-slate-700 whitespace-pre-line">{product.description}</p>
-            </div>
-          )}
+            ) : (
+              <p className="text-sm text-slate-500">ಈ ಉತ್ಪನ್ನದ ಬಳಕೆ ಮತ್ತು ಘಟಕಾಂಶಗಳ ವಿವರಕ್ಕೆ ಕರೆ ಮಾಡಿ: 7795198610</p>
+            )}
+          </div>
         </section>
 
         {product.video_url && (

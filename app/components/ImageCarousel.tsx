@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, Expand } from "lucide-react";
 import ImageLightbox from "./ImageLightbox";
 
@@ -10,10 +11,15 @@ interface ImageCarouselProps {
   className?: string;
   // ದೊಡ್ಡ ಗ್ಯಾಲರಿಯಲ್ಲಿ (ವಿವರ ಪೇಜ್) ಕೆಳಗೆ thumbnails ತೋರಿಸಲು
   showThumbnails?: boolean;
+  // ಕೊಟ್ಟರೆ ಫೋಟೋ ಕ್ಲಿಕ್ ಈ ಪೇಜ್ ತೆರೆಯುತ್ತದೆ (ಮುಖಪುಟದ ಕಾರ್ಡ್); ಇಲ್ಲದಿದ್ದರೆ ಪೂರ್ಣ ಪರದೆ ವೀಕ್ಷಕ
+  href?: string;
+  // ಫೋಟೋ ಮೇಲೆ ಹೆಚ್ಚುವರಿ ಬಟನ್‌ಗಳು (ಉದಾ: Share)
+  overlay?: React.ReactNode;
 }
 
 // ಫೋಟೋಗಳನ್ನು ಅಕ್ಕಪಕ್ಕ swipe / scroll ಮಾಡುವ ಗ್ಯಾಲರಿ (CSS scroll-snap, ಮೊಬೈಲ್‌ನಲ್ಲಿ ಬೆರಳಿನಿಂದ swipe)
-export default function ImageCarousel({ images, alt, className = "", showThumbnails = false }: ImageCarouselProps) {
+export default function ImageCarousel({ images, alt, className = "", showThumbnails = false, href, overlay }: ImageCarouselProps) {
+  const router = useRouter();
   const trackRef = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -58,11 +64,13 @@ export default function ImageCarousel({ images, alt, className = "", showThumbna
               alt={count > 1 ? `${alt} (${i + 1}/${count})` : alt}
               loading={i === 0 ? "eager" : "lazy"}
               draggable={false}
-              onClick={(e) => stop(e, () => setLightboxIndex(i))}
-              className="w-full h-full flex-none snap-center object-cover select-none cursor-zoom-in"
+              onClick={(e) => stop(e, () => (href ? router.push(href) : setLightboxIndex(i)))}
+              className={`w-full h-full flex-none snap-center object-cover select-none ${href ? "cursor-pointer" : "cursor-zoom-in"}`}
             />
           ))}
         </div>
+
+        {overlay}
 
         <button
           type="button"
