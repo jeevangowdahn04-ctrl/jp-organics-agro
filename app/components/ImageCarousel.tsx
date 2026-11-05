@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useRef, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import React, { useCallback, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, Expand } from "lucide-react";
+import ImageLightbox from "./ImageLightbox";
 
 interface ImageCarouselProps {
   images: string[];
@@ -15,7 +16,9 @@ interface ImageCarouselProps {
 export default function ImageCarousel({ images, alt, className = "", showThumbnails = false }: ImageCarouselProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const count = images.length;
+  const closeLightbox = useCallback(() => setLightboxIndex(null), []);
 
   const goTo = (i: number) => {
     const track = trackRef.current;
@@ -55,10 +58,20 @@ export default function ImageCarousel({ images, alt, className = "", showThumbna
               alt={count > 1 ? `${alt} (${i + 1}/${count})` : alt}
               loading={i === 0 ? "eager" : "lazy"}
               draggable={false}
-              className="w-full h-full flex-none snap-center object-cover select-none"
+              onClick={(e) => stop(e, () => setLightboxIndex(i))}
+              className="w-full h-full flex-none snap-center object-cover select-none cursor-zoom-in"
             />
           ))}
         </div>
+
+        <button
+          type="button"
+          onClick={(e) => stop(e, () => setLightboxIndex(index))}
+          aria-label="ಫೋಟೋ ದೊಡ್ಡದಾಗಿ ನೋಡಿ"
+          className="absolute bottom-2 right-2 w-7 h-7 rounded-full bg-white/85 hover:bg-white shadow flex items-center justify-center text-slate-700 transition"
+        >
+          <Expand className="w-3.5 h-3.5" />
+        </button>
 
         {count > 1 && (
           <>
@@ -111,6 +124,10 @@ export default function ImageCarousel({ images, alt, className = "", showThumbna
             </button>
           ))}
         </div>
+      )}
+
+      {lightboxIndex !== null && (
+        <ImageLightbox images={images} alt={alt} startIndex={lightboxIndex} onClose={closeLightbox} />
       )}
     </div>
   );
