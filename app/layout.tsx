@@ -1,9 +1,11 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { CartProvider } from "./components/cart/CartProvider";
 import { CustomerProvider } from "./components/customer/CustomerProvider";
 import { LanguageProvider } from "./components/i18n/LanguageProvider";
+import BottomNav from "./components/BottomNav";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,7 +31,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         <LanguageProvider>
           <CustomerProvider>
-            <CartProvider>{children}</CartProvider>
+            <CartProvider>
+              {children}
+              {/* usePathname ಬಳಸುವುದರಿಂದ Suspense ಒಳಗೆ (cacheComponents ನಿಯಮ) */}
+              <Suspense fallback={null}>
+                <BottomNav />
+              </Suspense>
+            </CartProvider>
           </CustomerProvider>
         </LanguageProvider>
       </body>

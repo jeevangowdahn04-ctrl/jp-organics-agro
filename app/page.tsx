@@ -20,7 +20,6 @@ import {
   Search, ShoppingCart, Phone, MapPin,
   Leaf, ShieldCheck, Sprout, Wrench,
   Star, Truck, Award, CheckCircle, MessageCircle, X, Loader2, PlayCircle,
-  Home as HomeIcon, LayoutGrid,
 } from "lucide-react";
 
 interface Product {
@@ -54,7 +53,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [categoryKey, setCategoryKey] = useState<TranslationKey | null>(null);
-  const { addItem, openCart, count } = useCart();
+  const { addItem } = useCart();
   const { requireLogin } = useCustomer();
   const { t, lang } = useLanguage();
   const router = useRouter();
@@ -452,26 +451,6 @@ export default function Home() {
         <p className="text-slate-500">{t("footer.rights")}</p>
       </footer>
 
-      {/* ಮೊಬೈಲ್ ಕೆಳಗಿನ ಟ್ಯಾಬ್ ಬಾರ್ */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t shadow-[0_-2px_10px_rgba(0,0,0,0.06)] grid grid-cols-4 text-[11px] font-semibold text-slate-600">
-        <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="flex flex-col items-center gap-0.5 py-2 text-emerald-700">
-          <HomeIcon className="w-5 h-5" /> {t("nav.home")}
-        </button>
-        <button type="button" onClick={() => document.getElementById("categories")?.scrollIntoView({ behavior: "smooth" })} className="flex flex-col items-center gap-0.5 py-2">
-          <LayoutGrid className="w-5 h-5" /> {t("nav.categories")}
-        </button>
-        <button type="button" onClick={openCart} className="relative flex flex-col items-center gap-0.5 py-2">
-          <ShoppingCart className="w-5 h-5" /> {t("nav.cart")}
-          {count > 0 && (
-            <span className="absolute top-1 left-1/2 ml-1.5 min-w-4 h-4 px-1 bg-amber-500 text-white text-[10px] rounded-full flex items-center justify-center">
-              {count}
-            </span>
-          )}
-        </button>
-        <a href="tel:7795198610" className="flex flex-col items-center gap-0.5 py-2">
-          <Phone className="w-5 h-5" /> {t("nav.contact")}
-        </a>
-      </nav>
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { getProductImages, getYouTubeId } from "@/lib/media";
 import { formatRupees, whatsappOrderUrl } from "@/lib/whatsapp";
 import { discountPercent, isInStock } from "@/lib/pricing";
 import { localizeProduct } from "@/lib/localize";
+import { saveOrder } from "@/lib/orderHistory";
 import ImageCarousel from "../../components/ImageCarousel";
 import CartButton from "../../components/cart/CartButton";
 import ShareButton from "../../components/ShareButton";
@@ -139,8 +140,9 @@ export default function ProductDetail({ id }: { id: string }) {
   const addToCart = () => requireLogin(() => addItem(cartProduct, quantity), t("login.reasonCart"));
   const buyNow = () =>
     requireLogin((customer) => {
-      const url = whatsappOrderUrl([{ name: text.name, price, quantity, weight: product.weight }], customer);
-      window.open(url, "_blank", "noopener,noreferrer");
+      const lines = [{ name: text.name, price, quantity, weight: product.weight }];
+      window.open(whatsappOrderUrl(lines, customer), "_blank", "noopener,noreferrer");
+      saveOrder(lines, customer);
     }, t("login.reasonBuy"));
 
   return (

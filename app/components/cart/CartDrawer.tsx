@@ -7,6 +7,7 @@ import { formatRupees, whatsappOrderUrl } from "@/lib/whatsapp";
 import { MAX_QUANTITY, useCart } from "./CartProvider";
 import { useCustomer } from "../customer/CustomerProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
+import { saveOrder } from "@/lib/orderHistory";
 
 // ಬಲಭಾಗದಿಂದ ಜಾರಿ ಬರುವ ಕಾರ್ಟ್ ಪ್ಯಾನೆಲ್
 export default function CartDrawer() {
@@ -32,6 +33,7 @@ export default function CartDrawer() {
     requireLogin((customer) => {
       const lines = items.map((i) => ({ name: nameOf(i), price: i.price, quantity: i.quantity, weight: i.weight }));
       window.open(whatsappOrderUrl(lines, customer), "_blank", "noopener,noreferrer");
+      saveOrder(lines, customer);
     }, t("login.reasonOrder"));
 
   return (
