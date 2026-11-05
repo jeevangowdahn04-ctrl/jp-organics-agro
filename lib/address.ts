@@ -5,12 +5,13 @@ export interface DeliveryAddress {
   hobli: string;
   taluk: string;
   district: string;
+  state: string;
   pincode: string; // 6 ಅಂಕಿ
 }
 
-export const ADDRESS_FIELDS = ["village", "post", "hobli", "taluk", "district", "pincode"] as const;
+export const ADDRESS_FIELDS = ["village", "post", "hobli", "taluk", "district", "state", "pincode"] as const;
 export const PINCODE_PATTERN = /^[1-9]\d{5}$/;
-export const EMPTY_ADDRESS: DeliveryAddress = { village: "", post: "", hobli: "", taluk: "", district: "", pincode: "" };
+export const EMPTY_ADDRESS: DeliveryAddress = { village: "", post: "", hobli: "", taluk: "", district: "", state: "", pincode: "" };
 
 export function cleanAddress(value: unknown): DeliveryAddress | null {
   if (!value || typeof value !== "object") return null;
@@ -29,6 +30,7 @@ export function formatAddressLines(a: DeliveryAddress): string[] {
     ["ಹೋಬಳಿ", a.hobli],
     ["ತಾಲೂಕು", a.taluk],
     ["ಜಿಲ್ಲೆ", a.district],
+    ["ರಾಜ್ಯ", a.state],
     ["ಪಿನ್‌ಕೋಡ್", a.pincode],
   ];
   return rows.filter(([, v]) => v).map(([label, v]) => `${label}: ${v}`);

@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Check, CheckCircle2, ChevronRight, LogOut, MapPin, MessageCircle, Package, Pencil, Phone, User } from "lucide-react";
+import { AlertCircle, Check, CheckCircle2, ChevronRight, Loader2, LogOut, MapPin, MessageCircle, Package, Pencil, Phone, User } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import AdminLoginSection from "../components/admin/AdminLoginSection";
 import { useLanguage } from "../components/i18n/LanguageProvider";
@@ -11,6 +11,7 @@ import { LANGS, type TranslationKey } from "@/lib/i18n";
 import { WHATSAPP_NUMBER } from "@/lib/whatsapp";
 import { useOrderHistory } from "@/lib/orderHistory";
 import { ADDRESS_FIELDS, EMPTY_ADDRESS, PINCODE_PATTERN, type DeliveryAddress } from "@/lib/address";
+import { lookupPincode } from "@/lib/pincode";
 
 const formatPhone = (p: string) => `+91 ${p.slice(0, 5)} ${p.slice(5)}`;
 
@@ -20,6 +21,7 @@ const FIELD_LABELS: Record<keyof DeliveryAddress, { label: TranslationKey; ph: T
   hobli: { label: "address.hobli", ph: "address.hobliPh" },
   taluk: { label: "address.taluk", ph: "address.talukPh" },
   district: { label: "address.district", ph: "address.districtPh" },
+  state: { label: "address.state", ph: "address.statePh" },
   pincode: { label: "address.pincode", ph: "address.pincodePh" },
 };
 
@@ -33,6 +35,81 @@ function ProfileForm({ initial, onSave, onCancel }: { initial: Customer | null; 
   const [phone, setPhone] = useState(initial?.phone ?? "");
   const [address, setAddress] = useState<DeliveryAddress>({ ...EMPTY_ADDRESS, ...(initial?.address ?? {}) });
   const [error, setError] = useState("");
+  // ಪಿನ್‌ಕೋಡ್ ಆಟೋ-ಫಿಲ್
+  const [pinStatus, setPinStatus] = useState<"idle" | "searching" | "ok" | "invalid" | "error">("idle");
+  const [postOffices, setPostOffices] = useState<string[]>([]);
+  const [postManual, setPostManual] = useState(false);
+  const [foundPlace, setFoundPlace] = useState("");
+  const lookupRef = useRef<AbortController | null>(null);
+
+  const runLookup = async (pin: string) => {
+    lookupRef.current?.abort();
+    const controller = new AbortController();
+    lookupRef.current = controller;
+    const timeout = setTimeout(() => controller.abort(), 12000);
+    setPinStatus("searching");
+    try {
+      const result = await lookupPincode(pin, controller.signal);
+      if (result.status !== "ok") {
+        setPinStatus(result.status);
+        setPostOffices([]);
+        return;
+      }
+      setPinStatus("ok");
+      setPostOffices(result.postOffices);
+      setFoundPlace([result.taluk, result.district, result.state].filter(Boolean).join(", "));
+      setAddress((prev) => ({
+        ...prev,
+        taluk: result.taluk || prev.taluk,
+        district: result.district || prev.district,
+        state: result.state || prev.state,
+        post: result.postOffices.includes(prev.post) ? prev.post : result.postOffices.length === 1 ? result.postOffices[0] : "",
+      }));
+      setPostManual(false);
+    } catch {
+      // ಹೊಸ ಪಿನ್‌ಕೋಡ್ ಟೈಪ್ ಆದಾಗ ಹಳೆಯ ಹುಡುಕಾಟ ರದ್ದು, ಅಥವಾ ಸಮಯ ಮೀರಿತು
+      if (lookupRef.current === controller) setPinStatus("error");
+    } finally {
+      clearTimeout(timeout);
+    }
+  };
+
+  // ಈಗಾಗಲೇ ಉಳಿಸಿದ ಪಿನ್‌ಕೋಡ್ ಇದ್ದರೆ ಅಂಚೆ ಕಚೇರಿ ಪಟ್ಟಿಯನ್ನು ಮಾತ್ರ ತರುವುದು (ಫೀಲ್ಡ್‌ಗಳನ್ನು ಬದಲಿಸದೆ)
+  useEffect(() => {
+    const pin = initial?.address?.pincode;
+    const savedPost = initial?.address?.post ?? "";
+    if (!pin || !PINCODE_PATTERN.test(pin)) return;
+    const controller = new AbortController();
+    lookupPincode(pin, controller.signal)
+      .then((result) => {
+        if (result.status !== "ok") return;
+        setPinStatus("ok");
+        setPostOffices(result.postOffices);
+        setFoundPlace([result.taluk, result.district, result.state].filter(Boolean).join(", "));
+        // ಉಳಿಸಿದ ಅಂಚೆ ಕಚೇರಿ ಪಟ್ಟಿಯಲ್ಲಿ ಇಲ್ಲದಿದ್ದರೆ ಅದನ್ನು ಬರೆದ ಹಾಗೆಯೇ ತೋರಿಸುವುದು
+        setPostManual(savedPost !== "" && !result.postOffices.includes(savedPost));
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [initial]);
+
+  const onPincodeChange = (value: string) => {
+    const pin = value.replace(/\D/g, "").slice(0, 6);
+    setAddress((prev) => ({ ...prev, pincode: pin }));
+    setError("");
+    if (pin.length < 6) {
+      lookupRef.current?.abort();
+      setPinStatus("idle");
+      setPostOffices([]);
+      return;
+    }
+    if (!PINCODE_PATTERN.test(pin)) {
+      setPinStatus("invalid");
+      setPostOffices([]);
+      return;
+    }
+    runLookup(pin);
+  };
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,6 +156,37 @@ function ProfileForm({ initial, onSave, onCancel }: { initial: Customer | null; 
         <legend className="text-sm font-bold text-slate-800 flex items-center gap-1.5 mb-1">
           <MapPin className="w-4 h-4 text-emerald-700" /> {t("profile.address")}
         </legend>
+        {/* ಪಿನ್‌ಕೋಡ್ ಮೊದಲು: ಹಾಕಿದ ತಕ್ಷಣ ಉಳಿದ ವಿವರಗಳು ತಾನಾಗೇ ತುಂಬುತ್ತವೆ */}
+        <div>
+          <label htmlFor="pf-pincode" className="block text-xs font-semibold text-slate-600 mb-1">{t(FIELD_LABELS.pincode.label)}</label>
+          <div className="relative max-w-[220px]">
+            <input
+              id="pf-pincode"
+              inputMode="numeric"
+              autoComplete="postal-code"
+              maxLength={6}
+              value={address.pincode}
+              onChange={(e) => onPincodeChange(e.target.value)}
+              placeholder={t(FIELD_LABELS.pincode.ph)}
+              aria-describedby="pf-pincode-status"
+              aria-invalid={pinStatus === "invalid"}
+              className={`${inputClass} tracking-widest pr-9 ${pinStatus === "invalid" ? "border-red-400" : ""}`}
+            />
+            {pinStatus === "searching" && <Loader2 className="w-4 h-4 animate-spin text-emerald-600 absolute right-3 top-1/2 -translate-y-1/2" />}
+            {pinStatus === "ok" && <CheckCircle2 className="w-4 h-4 text-emerald-600 absolute right-3 top-1/2 -translate-y-1/2" />}
+          </div>
+          <p id="pf-pincode-status" aria-live="polite" className="mt-1 text-xs">
+            {pinStatus === "searching" && <span className="text-emerald-700">{t("pincode.searching")}</span>}
+            {pinStatus === "invalid" && (
+              <span className="text-red-600 flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5" /> {t("pincode.invalid")}
+              </span>
+            )}
+            {pinStatus === "error" && <span className="text-amber-700">{t("pincode.error")}</span>}
+            {pinStatus === "ok" && <span className="text-emerald-700">{t("pincode.found", { place: foundPlace, n: postOffices.length })}</span>}
+            {pinStatus === "idle" && <span className="text-slate-500">{t("pincode.hint")}</span>}
+          </p>
+        </div>
         <div>
           <label htmlFor="pf-village" className="block text-xs font-semibold text-slate-600 mb-1">{t(FIELD_LABELS.village.label)}</label>
           <textarea
@@ -92,7 +200,46 @@ function ProfileForm({ initial, onSave, onCancel }: { initial: Customer | null; 
           />
         </div>
         <div className="grid grid-cols-2 gap-3">
-          {(["post", "hobli", "taluk", "district"] as const).map((f) => (
+          <div className="col-span-2 sm:col-span-1">
+            <label htmlFor="pf-post" className="block text-xs font-semibold text-slate-600 mb-1">{t(FIELD_LABELS.post.label)}</label>
+            {postOffices.length > 0 && !postManual ? (
+              <select
+                id="pf-post"
+                value={postOffices.includes(address.post) ? address.post : ""}
+                onChange={(e) => {
+                  if (e.target.value === "__other__") {
+                    setPostManual(true);
+                    return;
+                  }
+                  setAddress({ ...address, post: e.target.value });
+                  setError("");
+                }}
+                className={`${inputClass} bg-white`}
+              >
+                <option value="" disabled>{t("address.postSelect")}</option>
+                {postOffices.map((po) => (
+                  <option key={po} value={po}>{po}</option>
+                ))}
+                <option value="__other__">{t("address.postOther")}</option>
+              </select>
+            ) : (
+              <>
+                <input
+                  id="pf-post"
+                  value={address.post}
+                  onChange={(e) => { setAddress({ ...address, post: e.target.value }); setError(""); }}
+                  placeholder={t(FIELD_LABELS.post.ph)}
+                  className={inputClass}
+                />
+                {postOffices.length > 0 && (
+                  <button type="button" onClick={() => setPostManual(false)} className="mt-1 text-xs font-semibold text-emerald-700 hover:underline">
+                    {t("address.postList")}
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+          {(["hobli", "taluk", "district", "state"] as const).map((f) => (
             <div key={f}>
               <label htmlFor={`pf-${f}`} className="block text-xs font-semibold text-slate-600 mb-1">{t(FIELD_LABELS[f].label)}</label>
               <input
@@ -104,19 +251,6 @@ function ProfileForm({ initial, onSave, onCancel }: { initial: Customer | null; 
               />
             </div>
           ))}
-          <div>
-            <label htmlFor="pf-pincode" className="block text-xs font-semibold text-slate-600 mb-1">{t(FIELD_LABELS.pincode.label)}</label>
-            <input
-              id="pf-pincode"
-              inputMode="numeric"
-              autoComplete="postal-code"
-              maxLength={6}
-              value={address.pincode}
-              onChange={(e) => { setAddress({ ...address, pincode: e.target.value.replace(/\D/g, "") }); setError(""); }}
-              placeholder={t(FIELD_LABELS.pincode.ph)}
-              className={`${inputClass} tracking-widest`}
-            />
-          </div>
         </div>
       </fieldset>
 
