@@ -8,6 +8,8 @@ import { getProductImages, getYouTubeId } from "@/lib/media";
 import ImageCarousel from "./components/ImageCarousel";
 import CartButton from "./components/cart/CartButton";
 import { useCart } from "./components/cart/CartProvider";
+import { useCustomer } from "./components/customer/CustomerProvider";
+import ProfileButton from "./components/customer/ProfileButton";
 import { formatRupees } from "@/lib/whatsapp";
 import { discountPercent, isInStock } from "@/lib/pricing";
 import {
@@ -36,6 +38,7 @@ export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const { addItem } = useCart();
+  const { requireLogin } = useCustomer();
   const router = useRouter();
   const [videoProduct, setVideoProduct] = useState<Product | null>(null);
   const videoYouTubeId = videoProduct?.video_url ? getYouTubeId(videoProduct.video_url) : null;
@@ -72,13 +75,17 @@ export default function Home() {
   ];
 
   const addToCart = (product: Product) =>
-    addItem({
-      id: product.id,
-      name: product.name,
-      price: Number(product.price),
-      weight: product.weight,
-      image: getProductImages(product)[0] ?? null,
-    });
+    requireLogin(
+      () =>
+        addItem({
+          id: product.id,
+          name: product.name,
+          price: Number(product.price),
+          weight: product.weight,
+          image: getProductImages(product)[0] ?? null,
+        }),
+      "ಕಾರ್ಟ್‌ಗೆ ಸೇರಿಸಲು ಲಾಗಿನ್ ಮಾಡಿ"
+    );
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans relative">
@@ -132,6 +139,7 @@ export default function Home() {
               <Phone className="w-4 h-4" />
               <span className="hidden sm:inline">ಕೃಷಿ ಸಹಾಯವಾಣಿ</span>
             </a>
+            <ProfileButton />
             <CartButton />
           </div>
         </div>

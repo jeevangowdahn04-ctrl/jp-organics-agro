@@ -11,6 +11,8 @@ import ImageCarousel from "../../components/ImageCarousel";
 import CartButton from "../../components/cart/CartButton";
 import ShareButton from "../../components/ShareButton";
 import { MAX_QUANTITY, useCart } from "../../components/cart/CartProvider";
+import { useCustomer } from "../../components/customer/CustomerProvider";
+import ProfileButton from "../../components/customer/ProfileButton";
 
 interface Product {
   id: number | string;
@@ -66,6 +68,7 @@ export default function ProductDetail({ id }: { id: string }) {
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [quantity, setQuantity] = useState(1);
   const { addItem } = useCart();
+  const { requireLogin } = useCustomer();
 
   useEffect(() => {
     let active = true;
@@ -84,7 +87,10 @@ export default function ProductDetail({ id }: { id: string }) {
           <ArrowLeft className="w-5 h-5" /> <span className="hidden sm:inline">ಎಲ್ಲಾ ಉತ್ಪನ್ನಗಳು</span>
         </Link>
         <Link href="/" className="font-bold tracking-wide">JP ORGANICS</Link>
-        <CartButton className="bg-white/10 hover:bg-white/20 [&_svg]:text-white" />
+        <div className="flex items-center gap-2">
+          <ProfileButton dark />
+          <CartButton className="bg-white/10 hover:bg-white/20 [&_svg]:text-white" />
+        </div>
       </div>
     </header>
   );
@@ -120,7 +126,12 @@ export default function ProductDetail({ id }: { id: string }) {
   const inStock = isInStock(product);
   const points = highlightLines(product.highlights);
   const cartProduct = { id: product.id, name: product.name, price, weight: product.weight, image: images[0] ?? null };
-  const buyNowUrl = whatsappOrderUrl([{ name: product.name, price, quantity, weight: product.weight }]);
+  const addToCart = () => requireLogin(() => addItem(cartProduct, quantity), "ಕಾರ್ಟ್‌ಗೆ ಸೇರಿಸಲು ಲಾಗಿನ್ ಮಾಡಿ");
+  const buyNow = () =>
+    requireLogin((customer) => {
+      const url = whatsappOrderUrl([{ name: product.name, price, quantity, weight: product.weight }], customer);
+      window.open(url, "_blank", "noopener,noreferrer");
+    }, "ಖರೀದಿಸಲು ಲಾಗಿನ್ ಮಾಡಿ");
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-24 md:pb-0">
@@ -242,19 +253,17 @@ export default function ProductDetail({ id }: { id: string }) {
             {inStock ? (
               <>
                 <button
-                  onClick={() => addItem(cartProduct, quantity)}
+                  onClick={addToCart}
                   className="flex-1 bg-amber-400 hover:bg-amber-500 active:bg-amber-600 text-slate-900 font-bold py-3 rounded-full flex items-center justify-center gap-2 transition shadow-sm"
                 >
                   <ShoppingCart className="w-5 h-5" /> Add to Cart
                 </button>
-                <a
-                  href={buyNowUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  onClick={buyNow}
                   className="flex-1 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white font-bold py-3 rounded-full flex items-center justify-center gap-2 transition shadow-sm"
                 >
                   <Zap className="w-5 h-5" /> Buy Now
-                </a>
+                </button>
               </>
             ) : (
               <a
@@ -364,7 +373,10 @@ export default function ProductDetail({ id }: { id: string }) {
                       {off > 0 && <span className="text-[10px] text-slate-400 line-through -mt-1">{formatRupees(Number(p.mrp))}</span>}
                       <button
                         onClick={() =>
-                          addItem({ id: p.id, name: p.name, price: Number(p.price), weight: p.weight, image: photo ?? null })
+                          requireLogin(
+                            () => addItem({ id: p.id, name: p.name, price: Number(p.price), weight: p.weight, image: photo ?? null }),
+                            "ಕಾರ್ಟ್‌ಗೆ ಸೇರಿಸಲು ಲಾಗಿನ್ ಮಾಡಿ"
+                          )
                         }
                         disabled={!isInStock(p)}
                         className="mt-auto bg-amber-400 hover:bg-amber-500 text-slate-900 text-[11px] font-bold py-1.5 rounded-full transition disabled:bg-slate-200 disabled:text-slate-500"

@@ -10,8 +10,13 @@ export interface OrderLine {
 
 export const formatRupees = (amount: number) => `₹${amount.toLocaleString("en-IN")}`;
 
-// ಕಾರ್ಟ್‌ನ ಎಲ್ಲಾ ಪ್ರಾಡಕ್ಟ್, ಕ್ವಾಂಟಿಟಿ ಮತ್ತು ಒಟ್ಟು ಬೆಲೆಯೊಂದಿಗೆ WhatsApp ಸಂದೇಶ
-export function buildOrderMessage(lines: OrderLine[]) {
+export interface OrderCustomer {
+  name: string;
+  phone: string;
+}
+
+// ಕಾರ್ಟ್‌ನ ಎಲ್ಲಾ ಪ್ರಾಡಕ್ಟ್, ಕ್ವಾಂಟಿಟಿ, ಒಟ್ಟು ಬೆಲೆ ಮತ್ತು ಗ್ರಾಹಕರ ವಿವರದೊಂದಿಗೆ WhatsApp ಸಂದೇಶ
+export function buildOrderMessage(lines: OrderLine[], customer?: OrderCustomer | null) {
   const total = lines.reduce((sum, l) => sum + l.price * l.quantity, 0);
   let message = "ನಮಸ್ಕಾರ JP Organics, ನಾನು ಈ ಕೆಳಗಿನ ಉತ್ಪನ್ನಗಳನ್ನು ಆರ್ಡರ್ ಮಾಡಲು ಬಯಸುತ್ತೇನೆ:\n\n";
   lines.forEach((l, i) => {
@@ -20,10 +25,13 @@ export function buildOrderMessage(lines: OrderLine[]) {
   });
   message += `\nಒಟ್ಟು ವಸ್ತುಗಳು: ${lines.reduce((s, l) => s + l.quantity, 0)}\n`;
   message += `ಒಟ್ಟು ಮೊತ್ತ: ${formatRupees(total)}\n\n`;
+  if (customer) {
+    message += `ಗ್ರಾಹಕರ ಹೆಸರು: ${customer.name}\nಮೊಬೈಲ್: +91 ${customer.phone}\n\n`;
+  }
   message += "ದಯವಿಟ್ಟು ಡೆಲಿವರಿ ವಿವರಗಳನ್ನು ಕಳುಹಿಸಿ.";
   return message;
 }
 
-export function whatsappOrderUrl(lines: OrderLine[]) {
-  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(buildOrderMessage(lines))}`;
+export function whatsappOrderUrl(lines: OrderLine[], customer?: OrderCustomer | null) {
+  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(buildOrderMessage(lines, customer))}`;
 }

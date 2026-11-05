@@ -5,6 +5,7 @@ import Link from "next/link";
 import { MessageCircle, Minus, Plus, ShoppingCart, Sprout, Trash2, X } from "lucide-react";
 import { formatRupees, whatsappOrderUrl } from "@/lib/whatsapp";
 import { MAX_QUANTITY, useCart } from "./CartProvider";
+import { useCustomer } from "../customer/CustomerProvider";
 
 // ಬಲಭಾಗದಿಂದ ಜಾರಿ ಬರುವ ಕಾರ್ಟ್ ಪ್ಯಾನೆಲ್
 export default function CartDrawer() {
@@ -22,7 +23,12 @@ export default function CartDrawer() {
     };
   }, [isOpen, closeCart]);
 
-  const orderUrl = whatsappOrderUrl(items.map((i) => ({ name: i.name, price: i.price, quantity: i.quantity, weight: i.weight })));
+  const { requireLogin } = useCustomer();
+  const orderViaWhatsApp = () =>
+    requireLogin((customer) => {
+      const lines = items.map((i) => ({ name: i.name, price: i.price, quantity: i.quantity, weight: i.weight }));
+      window.open(whatsappOrderUrl(lines, customer), "_blank", "noopener,noreferrer");
+    }, "ಆರ್ಡರ್ ಕಳುಹಿಸಲು ಲಾಗಿನ್ ಮಾಡಿ");
 
   return (
     <div className={`fixed inset-0 z-[90] ${isOpen ? "" : "pointer-events-none"}`} aria-hidden={!isOpen}>
@@ -120,14 +126,13 @@ export default function CartDrawer() {
                 <span className="text-sm text-slate-600">ಒಟ್ಟು ({count} ವಸ್ತು):</span>
                 <span className="text-xl font-extrabold text-slate-900">{formatRupees(total)}</span>
               </div>
-              <a
-                href={orderUrl}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                type="button"
+                onClick={orderViaWhatsApp}
                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-full flex items-center justify-center gap-2 transition shadow"
               >
                 <MessageCircle className="w-5 h-5" /> Order via WhatsApp
-              </a>
+              </button>
               <div className="flex justify-between text-xs">
                 <button onClick={closeCart} className="font-semibold text-emerald-700 hover:underline">
                   ← ಶಾಪಿಂಗ್ ಮುಂದುವರಿಸಿ
