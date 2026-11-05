@@ -4,7 +4,6 @@ import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AlertCircle, Camera, Image as ImageIcon, Sprout, Trash2, Check, CheckCircle2, ChevronRight, Loader2, LogOut, MapPin, MessageCircle, Package, Pencil, Phone, User } from "lucide-react";
 import PageHeader from "../components/PageHeader";
-import AdminLoginSection from "../components/admin/AdminLoginSection";
 import { useLanguage } from "../components/i18n/LanguageProvider";
 import { PHONE_PATTERN, useCustomer, type Customer } from "../components/customer/CustomerProvider";
 import { LANGS, type TranslationKey } from "@/lib/i18n";
@@ -577,7 +576,6 @@ export default function ProfilePage() {
           )}
         </section>
 
-        <AdminLoginSection />
       </main>
     </div>
   );

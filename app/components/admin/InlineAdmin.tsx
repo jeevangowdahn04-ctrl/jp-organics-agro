@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { ExternalLink, LogOut, Pencil, Plus, Settings, Trash2, X } from "lucide-react";
 import AdminDashboard from "../../admin/AdminDashboard";
@@ -9,18 +9,35 @@ import { adminLogoutInline, adminStatus, deleteProduct, setProductStock } from "
 // ಮುಖಪುಟದ ಇನ್‌ಲೈನ್ ಅಡ್ಮಿನ್ ಮೋಡ್: ಅಡ್ಮಿನ್ ಲಾಗಿನ್ ಆಗಿದ್ದರೆ ಮಾತ್ರ ಕಾಣಿಸುತ್ತದೆ.
 // ಎಲ್ಲಾ ಬದಲಾವಣೆಗಳನ್ನು ಸರ್ವರ್ ಮತ್ತೆ ಅಡ್ಮಿನ್ ಕುಕೀಯಿಂದ ಪರಿಶೀಲಿಸುತ್ತದೆ; ಇಲ್ಲಿನ ಸ್ಥಿತಿ UI ತೋರಿಸಲು ಮಾತ್ರ.
 
-export function useAdminMode() {
-  const [isAdmin, setIsAdmin] = useState(false);
-  useEffect(() => {
-    let active = true;
+// ಅಡ್ಮಿನ್ ಸ್ಥಿತಿ ಎಲ್ಲಾ ಕಾಂಪೊನೆಂಟ್‌ಗಳಿಗೆ ಒಂದೇ (ರಹಸ್ಯ ಲಾಗಿನ್ ಪಾಪ್-ಅಪ್‌ನಿಂದ ಲಾಗಿನ್ ಆದ ತಕ್ಷಣ ಮುಖಪುಟದಲ್ಲಿ ಕಂಟ್ರೋಲ್‌ಗಳು ಬರಲು)
+let adminState: boolean | null = null;
+let checking = false;
+const adminListeners = new Set<() => void>();
+
+export function setAdminMode(value: boolean) {
+  adminState = value;
+  adminListeners.forEach((l) => l());
+}
+
+function subscribeAdmin(listener: () => void) {
+  adminListeners.add(listener);
+  if (adminState === null && !checking) {
+    checking = true;
     adminStatus()
-      .then((r) => active && setIsAdmin(Boolean(r?.isAdmin)))
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, []);
-  return [isAdmin, setIsAdmin] as const;
+      .then((r) => setAdminMode(Boolean(r?.isAdmin)))
+      .catch(() => {})
+      .finally(() => {
+        checking = false;
+      });
+  }
+  return () => {
+    adminListeners.delete(listener);
+  };
+}
+
+export function useAdminMode() {
+  const isAdmin = useSyncExternalStore(subscribeAdmin, () => adminState === true, () => false);
+  return [isAdmin, setAdminMode] as const;
 }
 
 type PanelState = { open: false } | { open: true; editId: number | string | null; key: number };
@@ -70,7 +87,7 @@ export function AdminBar({ onAdd, onOpenPanel, onLoggedOut }: { onAdd: () => voi
             }}
             className="flex items-center gap-1 text-red-700 hover:bg-red-50 font-semibold px-3 py-1.5 rounded-full text-xs"
           >
-            <LogOut className="w-4 h-4" /> ಅಡ್ಮಿನ್ ಲಾಗ್‌ಔಟ್
+            <LogOut className="w-4 h-4" /> ಅಡ್ಮಿನ್‌ನಿಂದ ನಿರ್ಗಮಿಸಿ (Exit Admin)
           </button>
         </div>
       </div>

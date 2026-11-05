@@ -168,7 +168,7 @@ export default function Home() {
       {/* Main Header */}
       <header className="bg-white border-b sticky top-0 z-40 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
-          <Link href="/" className="flex items-center gap-2 flex-none">
+          <Link href="/" data-admin-tap className="flex items-center gap-2 flex-none select-none">
             <div className="w-10 h-10 bg-emerald-600 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow">
               JP
             </div>

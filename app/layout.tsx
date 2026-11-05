@@ -6,6 +6,7 @@ import { CartProvider } from "./components/cart/CartProvider";
 import { CustomerProvider } from "./components/customer/CustomerProvider";
 import { LanguageProvider } from "./components/i18n/LanguageProvider";
 import BottomNav from "./components/BottomNav";
+import SecretAdminLogin from "./components/admin/SecretAdminLogin";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               {/* usePathname ಬಳಸುವುದರಿಂದ Suspense ಒಳಗೆ (cacheComponents ನಿಯಮ) */}
               <Suspense fallback={null}>
                 <BottomNav />
+                <SecretAdminLogin />
               </Suspense>
             </CartProvider>
           </CustomerProvider>
