@@ -2,10 +2,12 @@
 
 import React, { createContext, useCallback, useContext, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import LoginModal from "./LoginModal";
+import { cleanAddress, type DeliveryAddress } from "@/lib/address";
 
 export interface Customer {
   name: string;
   phone: string; // 10 ಅಂಕಿ, +91 ಇಲ್ಲದೆ
+  address?: DeliveryAddress | null;
 }
 
 // ಗ್ರಾಹಕರ ಲಾಗಿನ್ ಈ ಬ್ರೌಸರ್‌ನಲ್ಲೇ ಉಳಿಯುತ್ತದೆ (Logout ಮಾಡುವವರೆಗೆ ಮತ್ತೆ ಕೇಳುವುದಿಲ್ಲ).
@@ -19,7 +21,8 @@ const listeners = new Set<() => void>();
 function readStored(): Customer | null {
   try {
     const parsed = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || "null");
-    return parsed && typeof parsed.name === "string" && PHONE_PATTERN.test(parsed.phone) ? parsed : null;
+    if (!parsed || typeof parsed.name !== "string" || !PHONE_PATTERN.test(parsed.phone)) return null;
+    return { name: parsed.name, phone: parsed.phone, address: cleanAddress(parsed.address) };
   } catch {
     return null;
   }
@@ -60,6 +63,8 @@ interface CustomerContextValue {
   customer: Customer | null;
   openLogin: () => void;
   logout: () => void;
+  // ಪ್ರೊಫೈಲ್ ಪುಟದಿಂದ ಹೆಸರು, ಸಂಖ್ಯೆ ಮತ್ತು ವಿಳಾಸ ಸೇವ್ ಮಾಡುವುದು (ಲಾಗಿನ್ ಆಗಿರದಿದ್ದರೆ ಇದೇ ಲಾಗಿನ್)
+  saveProfile: (customer: Customer) => void;
   // ಲಾಗಿನ್ ಆಗಿದ್ದರೆ ತಕ್ಷಣ, ಇಲ್ಲದಿದ್ದರೆ ಲಾಗಿನ್ ಆದ ನಂತರ action ನಡೆಸುತ್ತದೆ
   requireLogin: (action: (customer: Customer) => void, reason?: string) => void;
 }
@@ -89,6 +94,7 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
         setModal({ open: true });
       },
       logout: () => setCustomer(null),
+      saveProfile: (c) => setCustomer({ name: c.name, phone: c.phone, address: cleanAddress(c.address) }),
       requireLogin,
     }),
     [customer, requireLogin]
@@ -100,7 +106,9 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
   };
 
   const onLogin = (c: Customer) => {
-    setCustomer(c);
+    // ಈ ಬ್ರೌಸರ್‌ನಲ್ಲಿ ಹಿಂದೆ ಉಳಿಸಿದ ವಿಳಾಸವಿದ್ದರೆ (ಅದೇ ಸಂಖ್ಯೆಗೆ) ಅದನ್ನು ಉಳಿಸಿಕೊಳ್ಳುವುದು
+    const previous = getSnapshot();
+    setCustomer({ ...c, address: c.address ?? (previous?.phone === c.phone ? previous.address : null) });
     setModal({ open: false });
     const action = pending.current;
     pending.current = null;

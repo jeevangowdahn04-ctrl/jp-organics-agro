@@ -1,3 +1,5 @@
+import { formatAddressLines, type DeliveryAddress } from "@/lib/address";
+
 // ಆರ್ಡರ್‌ಗಳು ಹೋಗುವ WhatsApp ಸಂಖ್ಯೆ (ದೇಶದ ಕೋಡ್ ಸಹಿತ, + ಇಲ್ಲದೆ)
 export const WHATSAPP_NUMBER = "916360628048";
 
@@ -13,6 +15,7 @@ export const formatRupees = (amount: number) => `₹${amount.toLocaleString("en-
 export interface OrderCustomer {
   name: string;
   phone: string;
+  address?: DeliveryAddress | null;
 }
 
 // ಕಾರ್ಟ್‌ನ ಎಲ್ಲಾ ಪ್ರಾಡಕ್ಟ್, ಕ್ವಾಂಟಿಟಿ, ಒಟ್ಟು ಬೆಲೆ ಮತ್ತು ಗ್ರಾಹಕರ ವಿವರದೊಂದಿಗೆ WhatsApp ಸಂದೇಶ
@@ -27,6 +30,10 @@ export function buildOrderMessage(lines: OrderLine[], customer?: OrderCustomer |
   message += `ಒಟ್ಟು ಮೊತ್ತ: ${formatRupees(total)}\n\n`;
   if (customer) {
     message += `ಗ್ರಾಹಕರ ಹೆಸರು: ${customer.name}\nಮೊಬೈಲ್: +91 ${customer.phone}\n\n`;
+    const addressLines = customer.address ? formatAddressLines(customer.address) : [];
+    if (addressLines.length) {
+      message += `ಡೆಲಿವರಿ ವಿಳಾಸ:\n${addressLines.join("\n")}\n\n`;
+    }
   }
   message += "ದಯವಿಟ್ಟು ಡೆಲಿವರಿ ವಿವರಗಳನ್ನು ಕಳುಹಿಸಿ.";
   return message;
