@@ -14,6 +14,9 @@ import { ADDRESS_FIELDS, EMPTY_ADDRESS, PINCODE_PATTERN, type DeliveryAddress } 
 import { lookupPincode } from "@/lib/pincode";
 import { fileToAvatar } from "@/lib/avatar";
 import Avatar from "../components/customer/Avatar";
+import ProfileView from "../components/community/ProfileView";
+import { syncProfile } from "../community/actions";
+import { communityError } from "@/lib/community";
 
 const formatPhone = (p: string) => `+91 ${p.slice(0, 5)} ${p.slice(5)}`;
 
@@ -320,6 +323,50 @@ function ProfilePhoto({ customer, onChange }: { customer: Customer; onChange: (a
   );
 }
 
+// ಸಮುದಾಯ ಪ್ರೊಫೈಲ್: ಗ್ರಾಹಕರ ಹೆಸರು/ಊರು/ಫೋಟೋವನ್ನು ಸಮುದಾಯಕ್ಕೆ ಹೊಂದಿಸಿ, ಪೋಸ್ಟ್/ರೀಲ್ಸ್/ಫ್ರೆಂಡ್ಸ್ ತೋರಿಸುವುದು
+function MyCommunity({ customer }: { customer: Customer }) {
+  const { t } = useLanguage();
+  const [id, setId] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const village = [customer.address?.village, customer.address?.taluk].filter(Boolean).join(", ");
+  const avatar = customer.avatar ?? null;
+
+  useEffect(() => {
+    let active = true;
+    syncProfile({ name: customer.name, phone: customer.phone, village, avatar }).then((res) => {
+      if (!active) return;
+      const r = res as { id?: string; error?: string };
+      if (r.id) setId(r.id);
+      else setError(t(communityError(r.error)));
+    });
+    return () => {
+      active = false;
+    };
+  }, [customer.name, customer.phone, village, avatar, t]);
+
+  return (
+    <div className="space-y-2">
+      <h2 className="text-sm font-bold text-slate-700 flex items-center gap-1.5 px-1">
+        <Sprout className="w-4 h-4 text-emerald-700" /> {t("community.title")}
+        {id && (
+          <Link href={`/farmer/${id}`} aria-label={t("community.title")} className="ml-auto text-emerald-700 hover:text-emerald-900">
+            <ChevronRight className="w-4 h-4" />
+          </Link>
+        )}
+      </h2>
+      {error ? (
+        <p className="bg-white border rounded-2xl p-5 text-sm text-slate-500">{error}</p>
+      ) : id ? (
+        <ProfileView key={id} id={id} embedded />
+      ) : (
+        <p className="bg-white border rounded-2xl p-8 text-center">
+          <Loader2 className="w-5 h-5 animate-spin inline text-emerald-700" />
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function ProfilePage() {
   const { t, lang, setLang } = useLanguage();
   const { customer, saveProfile, logout } = useCustomer();
@@ -409,6 +456,14 @@ export default function ProfilePage() {
             </div>
           )}
         </section>
+
+        {customer ? (
+          <MyCommunity customer={customer} />
+        ) : (
+          <p className="bg-emerald-50 border border-emerald-200 text-emerald-900 text-sm rounded-2xl px-5 py-4 flex items-center gap-2">
+            <Sprout className="w-5 h-5 flex-none" /> {t("community.loginToJoin")}
+          </p>
+        )}
 
         {/* ಆಯ್ಕೆಗಳು */}
         <section className="bg-white border rounded-2xl divide-y">

@@ -465,10 +465,12 @@ export default function Home() {
 
       {/* Footer */}
       <footer id="contact" className="bg-slate-900 text-slate-300 mt-16 py-8 border-t border-slate-800 text-center text-xs scroll-mt-24">
-        <nav className="flex justify-center gap-6 mb-5 text-sm font-semibold">
+        <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2 mb-5 text-sm font-semibold">
           <a href="#" className="hover:text-white">{t("nav.home")}</a>
           <a href="#categories" className="hover:text-white">{t("nav.categories")}</a>
           <Link href="/stories" className="hover:text-white">{t("nav.stories")}</Link>
+          <Link href="/search" className="hover:text-white">{t("nav.search")}</Link>
+          <Link href="/reels" className="hover:text-white">{t("nav.reels")}</Link>
           <a href="tel:7795198610" className="hover:text-white">{t("nav.contact")}</a>
         </nav>
         <p className="font-bold text-sm text-white mb-2">JP ORGANICS AND AGRO CENTER</p>

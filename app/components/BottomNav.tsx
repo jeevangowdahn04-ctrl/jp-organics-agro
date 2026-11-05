@@ -3,15 +3,15 @@
 import React, { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, LayoutGrid, Package, User } from "lucide-react";
+import { Clapperboard, Home, LayoutGrid, Package, Search, User } from "lucide-react";
 import { useLanguage } from "./i18n/LanguageProvider";
 import { useCustomer } from "./customer/CustomerProvider";
 
-type Tab = "home" | "categories" | "orders" | "profile";
+type Tab = "home" | "search" | "categories" | "orders" | "reels" | "profile";
 
 const noopSubscribe = () => () => {};
 
-// ಮೊಬೈಲ್ ಕೆಳಗಿನ ನ್ಯಾವಿಗೇಷನ್: ಮುಖಪುಟ | ವರ್ಗಗಳು | ನನ್ನ ಆರ್ಡರ್‌ಗಳು | ಪ್ರೊಫೈಲ್
+// ಮೊಬೈಲ್ ಕೆಳಗಿನ ನ್ಯಾವಿಗೇಷನ್: ಮುಖಪುಟ | ಹುಡುಕಿ | ವರ್ಗಗಳು | ನನ್ನ ಆರ್ಡರ್‌ಗಳು | ರೀಲ್ಸ್ | ಪ್ರೊಫೈಲ್
 // ಪ್ರಾಡಕ್ಟ್ ಪುಟದಲ್ಲಿ (ಅಲ್ಲಿ ಕೆಳಗೆ "ಕಾರ್ಟ್‌ಗೆ ಸೇರಿಸಿ / ಖರೀದಿಸಿ" ಬಾರ್ ಇದೆ) ಮತ್ತು ಅಡ್ಮಿನ್‌ನಲ್ಲಿ ಮರೆಯಾಗುತ್ತದೆ.
 export default function BottomNav() {
   const pathname = usePathname();
@@ -28,6 +28,8 @@ export default function BottomNav() {
 
   const active: Tab | null =
     pathname === "/orders" ? "orders"
+    : pathname === "/search" ? "search"
+    : pathname === "/reels" ? "reels"
     : pathname === "/profile" ? "profile"
     : pathname === "/" ? (categoriesFor === pathname ? "categories" : "home")
     : null;
@@ -50,22 +52,27 @@ export default function BottomNav() {
   };
 
   const item = (tab: Tab) =>
-    `relative flex flex-col items-center justify-center gap-0.5 py-2 px-0.5 text-[10px] min-[400px]:text-[11px] leading-tight whitespace-nowrap font-semibold transition ${
+    `relative flex flex-col items-center justify-center gap-0.5 py-2 px-0.5 text-[9px] min-[380px]:text-[10px] min-[420px]:text-[11px] leading-tight whitespace-nowrap overflow-hidden font-semibold transition ${
       active === tab ? "text-emerald-700" : "text-slate-500 hover:text-slate-700"
     }`;
   const indicator = (tab: Tab) =>
-    active === tab ? <span className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-10 rounded-full bg-emerald-600" /> : null;
+    active === tab ? <span className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-full bg-emerald-600" /> : null;
   const iconClass = (tab: Tab) => `w-5 h-5 ${active === tab ? "stroke-[2.5]" : ""}`;
 
   return (
     <nav
       aria-label={t("nav.main")}
-      className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur border-t shadow-[0_-2px_10px_rgba(0,0,0,0.06)] grid grid-cols-4 pb-[env(safe-area-inset-bottom)]"
+      className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur border-t shadow-[0_-2px_10px_rgba(0,0,0,0.06)] grid grid-cols-6 pb-[env(safe-area-inset-bottom)]"
     >
       <Link href="/" onClick={goHome} aria-current={active === "home" ? "page" : undefined} className={item("home")}>
         {indicator("home")}
         <Home className={iconClass("home")} />
         {t("nav.home")}
+      </Link>
+      <Link href="/search" onClick={() => setCategoriesFor(null)} aria-current={active === "search" ? "page" : undefined} className={item("search")}>
+        {indicator("search")}
+        <Search className={iconClass("search")} />
+        {t("nav.search")}
       </Link>
       <button type="button" onClick={goCategories} aria-current={active === "categories" ? "page" : undefined} className={item("categories")}>
         {indicator("categories")}
@@ -76,6 +83,11 @@ export default function BottomNav() {
         {indicator("orders")}
         <Package className={iconClass("orders")} />
         {t("nav.orders")}
+      </Link>
+      <Link href="/reels" onClick={() => setCategoriesFor(null)} aria-current={active === "reels" ? "page" : undefined} className={item("reels")}>
+        {indicator("reels")}
+        <Clapperboard className={iconClass("reels")} />
+        {t("nav.reels")}
       </Link>
       <Link href="/profile" onClick={() => setCategoriesFor(null)} aria-current={active === "profile" ? "page" : undefined} className={item("profile")}>
         {indicator("profile")}
