@@ -6,7 +6,8 @@ import { ArrowLeft, CheckCircle2, Loader2, MapPin, Minus, Phone, Plus, ShieldChe
 import { supabase } from "@/lib/supabase";
 import { getProductImages, getYouTubeId } from "@/lib/media";
 import { formatRupees, whatsappOrderUrl } from "@/lib/whatsapp";
-import { discountPercent, highlightLines, isInStock } from "@/lib/pricing";
+import { discountPercent, isInStock } from "@/lib/pricing";
+import { localizeProduct } from "@/lib/localize";
 import ImageCarousel from "../../components/ImageCarousel";
 import CartButton from "../../components/cart/CartButton";
 import ShareButton from "../../components/ShareButton";
@@ -28,6 +29,10 @@ interface Product {
   rating?: number | null;
   in_stock?: boolean | null;
   highlights?: string | null;
+  name_en?: string | null;
+  category_en?: string | null;
+  description_en?: string | null;
+  highlights_en?: unknown;
   image_url?: string | null;
   image_urls?: string[] | null;
   video_url?: string | null;
@@ -71,7 +76,7 @@ export default function ProductDetail({ id }: { id: string }) {
   const [quantity, setQuantity] = useState(1);
   const { addItem } = useCart();
   const { requireLogin } = useCustomer();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
 
   useEffect(() => {
     let active = true;
@@ -128,12 +133,13 @@ export default function ProductDetail({ id }: { id: string }) {
   const price = Number(product.price);
   const discount = discountOf(product);
   const inStock = isInStock(product);
-  const points = highlightLines(product.highlights);
-  const cartProduct = { id: product.id, name: product.name, price, weight: product.weight, image: images[0] ?? null };
+  const text = localizeProduct(product, lang);
+  const points = text.highlights;
+  const cartProduct = { id: product.id, name: product.name, nameEn: product.name_en, price, weight: product.weight, image: images[0] ?? null };
   const addToCart = () => requireLogin(() => addItem(cartProduct, quantity), t("login.reasonCart"));
   const buyNow = () =>
     requireLogin((customer) => {
-      const url = whatsappOrderUrl([{ name: product.name, price, quantity, weight: product.weight }], customer);
+      const url = whatsappOrderUrl([{ name: text.name, price, quantity, weight: product.weight }], customer);
       window.open(url, "_blank", "noopener,noreferrer");
     }, t("login.reasonBuy"));
 
@@ -147,15 +153,15 @@ export default function ProductDetail({ id }: { id: string }) {
           {images.length > 0 ? (
             <ImageCarousel
               images={images}
-              alt={product.name}
+              alt={text.name}
               showThumbnails
-              overlay={<ShareButton title={product.name} className="absolute top-2 left-2 z-10 p-2" />}
+              overlay={<ShareButton title={text.name} className="absolute top-2 left-2 z-10 p-2" />}
               className="w-full [&>div:first-child]:aspect-square [&>div:first-child]:md:rounded-xl [&>div:first-child]:overflow-hidden [&>div:first-child]:bg-white"
             />
           ) : (
             <div className="relative aspect-square md:rounded-xl bg-slate-100 flex items-center justify-center">
               <Sprout className="w-20 h-20 text-emerald-500" />
-              <ShareButton title={product.name} className="absolute top-2 left-2 p-2" />
+              <ShareButton title={text.name} className="absolute top-2 left-2 p-2" />
             </div>
           )}
         </section>
@@ -165,14 +171,14 @@ export default function ProductDetail({ id }: { id: string }) {
           <div className="flex gap-2 flex-wrap">
             <span className="text-[11px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded">{product.tag || "Organic"}</span>
             <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded uppercase">
-              {product.category || t("products.defaultCategory")}
+              {text.category || t("products.defaultCategory")}
             </span>
           </div>
 
           <Link href="/" className="text-sm text-emerald-700 hover:underline block -mb-2">
             {t("detail.visitStore")}
           </Link>
-          <h1 className="text-xl md:text-2xl font-bold leading-snug">{product.name}</h1>
+          <h1 className="text-xl md:text-2xl font-bold leading-snug">{text.name}</h1>
           <div className="flex items-center gap-3 flex-wrap -mt-2 text-sm">
             <span className="text-slate-500">
               {t("detail.brand")}: <span className="font-semibold text-slate-800">{BRAND}</span>
@@ -298,8 +304,8 @@ export default function ProductDetail({ id }: { id: string }) {
               <tbody className="divide-y divide-slate-100">
                 {[
                   [t("detail.brand"), BRAND],
-                  [t("detail.row.name"), product.name],
-                  [t("detail.row.category"), product.category || t("products.defaultCategory")],
+                  [t("detail.row.name"), text.name],
+                  [t("detail.row.category"), text.category || t("products.defaultCategory")],
                   [t("detail.row.packing"), product.weight],
                   [t("detail.row.type"), product.tag || "Organic"],
                   [t("detail.row.seller"), t("detail.sellerValue")],
@@ -323,8 +329,8 @@ export default function ProductDetail({ id }: { id: string }) {
                 ))}
               </ul>
             )}
-            {product.description ? (
-              <p className="text-sm leading-relaxed text-slate-700 whitespace-pre-line">{product.description}</p>
+            {text.description ? (
+              <p className="text-sm leading-relaxed text-slate-700 whitespace-pre-line">{text.description}</p>
             ) : points.length === 0 ? (
               <p className="text-sm text-slate-500">{t("detail.noDescription")}</p>
             ) : null}
@@ -338,7 +344,7 @@ export default function ProductDetail({ id }: { id: string }) {
               {youTubeId ? (
                 <iframe
                   src={`https://www.youtube-nocookie.com/embed/${youTubeId}?rel=0`}
-                  title={product.name}
+                  title={text.name}
                   allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
                   className="w-full h-full"
@@ -357,20 +363,21 @@ export default function ProductDetail({ id }: { id: string }) {
             <div className="flex gap-3 overflow-x-auto snap-x pb-2 -mx-1 px-1">
               {related.map((p) => {
                 const photo = getProductImages(p)[0];
+                const pName = localizeProduct(p, lang).name;
                 const off = discountOf(p);
                 return (
                   <div key={p.id} className="snap-start flex-none w-40 sm:w-44 border rounded-xl overflow-hidden bg-white flex flex-col">
                     <Link href={`/products/${p.id}`} className="block aspect-square bg-slate-100">
                       {photo ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={photo} alt={p.name} loading="lazy" className="w-full h-full object-cover" />
+                        <img src={photo} alt={pName} loading="lazy" className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center"><Sprout className="w-10 h-10 text-emerald-500" /></div>
                       )}
                     </Link>
                     <div className="p-2.5 flex flex-col gap-1 flex-1">
                       <Link href={`/products/${p.id}`} className="text-xs font-semibold line-clamp-2 hover:text-emerald-700 min-h-8">
-                        {p.name}
+                        {pName}
                       </Link>
                       <div className="flex items-baseline gap-1.5">
                         <span className="font-bold text-sm">{formatRupees(Number(p.price))}</span>
@@ -380,7 +387,7 @@ export default function ProductDetail({ id }: { id: string }) {
                       <button
                         onClick={() =>
                           requireLogin(
-                            () => addItem({ id: p.id, name: p.name, price: Number(p.price), weight: p.weight, image: photo ?? null }),
+                            () => addItem({ id: p.id, name: p.name, nameEn: p.name_en, price: Number(p.price), weight: p.weight, image: photo ?? null }),
                             t("login.reasonCart")
                           )
                         }

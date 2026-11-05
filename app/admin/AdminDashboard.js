@@ -55,6 +55,11 @@ export default function AdminDashboard() {
   const [inStock, setInStock] = useState(true);
   const [highlights, setHighlights] = useState("");
   const [description, setDescription] = useState("");
+  const [nameEn, setNameEn] = useState("");
+  const [categoryEn, setCategoryEn] = useState("");
+  const [highlightsEn, setHighlightsEn] = useState("");
+  const [descriptionEn, setDescriptionEn] = useState("");
+  const [contentLang, setContentLang] = useState("kn");
   const [images, setImages] = useState([]);
   const [videoMode, setVideoMode] = useState("youtube");
   const [youtubeUrl, setYoutubeUrl] = useState("");
@@ -149,6 +154,11 @@ export default function AdminDashboard() {
     setInStock(true);
     setHighlights("");
     setDescription("");
+    setNameEn("");
+    setCategoryEn("");
+    setHighlightsEn("");
+    setDescriptionEn("");
+    setContentLang("kn");
     setImages([]);
     setVideoMode("youtube");
     setYoutubeUrl("");
@@ -169,6 +179,11 @@ export default function AdminDashboard() {
     setInStock(isInStock(p));
     setHighlights(highlightLines(p.highlights).join("\n"));
     setDescription(p.description ?? "");
+    setNameEn(p.name_en ?? "");
+    setCategoryEn(p.category_en ?? "");
+    setHighlightsEn(highlightLines(p.highlights_en).join("\n"));
+    setDescriptionEn(p.description_en ?? "");
+    setContentLang("kn");
     setImages(getProductImages(p).map(fromUrl));
     setVideoFile(null);
     if (videoInputRef.current) videoInputRef.current.value = "";
@@ -202,6 +217,11 @@ export default function AdminDashboard() {
     e.preventDefault();
     if (videoMode === "youtube" && youtubeUrl.trim() && !getYouTubeId(youtubeUrl)) {
       alert("ಸರಿಯಾದ YouTube ಲಿಂಕ್ ಹಾಕಿ.");
+      return;
+    }
+    if (!name.trim() && !nameEn.trim()) {
+      alert("ಕನ್ನಡ ಅಥವಾ English ಟ್ಯಾಬ್‌ನಲ್ಲಿ ಪ್ರಾಡಕ್ಟ್ ಹೆಸರು ನಮೂದಿಸಿ.");
+      setContentLang("kn");
       return;
     }
     if (mrp !== "" && Number(mrp) < Number(price)) {
@@ -238,7 +258,10 @@ export default function AdminDashboard() {
       }
 
       setStatus("ಪ್ರಾಡಕ್ಟ್ ಸೇವ್ ಆಗುತ್ತಿದೆ...");
-      const payload = { name, price, mrp, category, weight, inStock, highlights, description, imageUrls, videoUrl };
+      const payload = {
+        name, nameEn, price, mrp, category, categoryEn, weight, inStock,
+        highlights, highlightsEn, description, descriptionEn, imageUrls, videoUrl,
+      };
       const { error } = editingId ? await updateProduct(editingId, payload) : await addProduct(payload);
       if (error) throw new Error(error);
 
@@ -277,35 +300,100 @@ export default function AdminDashboard() {
         <h3 style={{ marginTop: 0 }}>
           {editingId ? `ಪ್ರಾಡಕ್ಟ್ ಎಡಿಟ್ ಮಾಡಿ (Edit Product #${editingId})` : "ಹೊಸ ಪ್ರಾಡಕ್ಟ್ ಸೇರಿಸಿ (Add Product)"}
         </h3>
-        <div style={{ marginBottom: "12px" }}>
-          <label style={labelStyle}>ಪ್ರಾಡಕ್ಟ್ ಹೆಸರು:</label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            placeholder="ಉದಾ: Humic Acid 98%"
-            style={inputStyle}
-          />
-        </div>
-        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginBottom: "12px" }}>
-          <div style={{ flex: "1 1 200px" }}>
-            <label htmlFor="productCategory" style={labelStyle}>ವರ್ಗ (Category):</label>
-            <input
-              id="productCategory"
-              type="text"
-              list="categoryOptions"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              placeholder="ಉದಾ: ಬೆಳೆ ಪೋಷಕಾಂಶಗಳು"
-              style={inputStyle}
-            />
-            <datalist id="categoryOptions">
-              {[...new Set(["ಸಾವಯವ ಗೊಬ್ಬರಗಳು", "ಬೆಳೆ ಪೋಷಕಾಂಶಗಳು", "ಬೆಳೆ ಸಂರಕ್ಷಣೆ", "ಕೃಷಿ ಪರಿಕರಗಳು", ...products.map((p) => p.category).filter(Boolean)])].map((c) => (
-                <option key={c} value={c} />
-              ))}
-            </datalist>
+        {/* ಕನ್ನಡ / English ಮಾಹಿತಿ: ಒಂದೇ ಬಾಕ್ಸ್‌ನಲ್ಲಿ ಟ್ಯಾಬ್ ಬದಲಿಸಿ ಭರ್ತಿ ಮಾಡುವುದು */}
+        <div style={{ border: "1px solid #c8e6c9", borderRadius: "8px", background: "white", marginBottom: "14px" }}>
+          <div role="tablist" style={{ display: "flex", borderBottom: "1px solid #c8e6c9" }}>
+            {[
+              { code: "kn", label: "ಕನ್ನಡ", filled: name.trim() },
+              { code: "en", label: "English", filled: nameEn.trim() },
+            ].map((tab) => (
+              <button
+                key={tab.code}
+                type="button"
+                role="tab"
+                aria-selected={contentLang === tab.code}
+                onClick={() => setContentLang(tab.code)}
+                style={{
+                  flex: 1, padding: "10px", border: "none", cursor: "pointer", fontWeight: "bold", fontSize: "14px",
+                  background: contentLang === tab.code ? "#2e7d32" : "transparent",
+                  color: contentLang === tab.code ? "white" : "#2e7d32",
+                  borderRadius: tab.code === "kn" ? "8px 0 0 0" : "0 8px 0 0",
+                }}>
+                {tab.label} {tab.filled ? "✓" : ""}
+              </button>
+            ))}
           </div>
+          <div style={{ padding: "14px" }}>
+            <p style={{ ...hintStyle, marginTop: 0, marginBottom: "10px" }}>
+              {contentLang === "kn"
+                ? "ಕನ್ನಡದಲ್ಲಿ ಮಾಹಿತಿ. ಗ್ರಾಹಕರು ಕನ್ನಡ ಆಯ್ಕೆ ಮಾಡಿದಾಗ ಕಾಣಿಸುತ್ತದೆ."
+                : "English details, shown when customers choose English."}{" "}
+              ಒಂದು ಭಾಷೆ ಖಾಲಿ ಇದ್ದರೆ ಇನ್ನೊಂದು ಭಾಷೆಯ ಮಾಹಿತಿ ಕಾಣಿಸುತ್ತದೆ.
+            </p>
+            <div style={{ marginBottom: "12px" }}>
+              <label htmlFor="productName" style={labelStyle}>{contentLang === "kn" ? "ಪ್ರಾಡಕ್ಟ್ ಹೆಸರು (ಕನ್ನಡ):" : "Product Name (English):"}</label>
+              <input
+                id="productName"
+                type="text"
+                value={contentLang === "kn" ? name : nameEn}
+                onChange={(e) => (contentLang === "kn" ? setName : setNameEn)(e.target.value)}
+                placeholder={contentLang === "kn" ? "ಉದಾ: ಆಗ್ರೋ ಸೂಕ್ಷ್ಮ ಪೋಷಕಾಂಶಗಳು" : "e.g. Agro Micronutrients"}
+                style={inputStyle}
+              />
+            </div>
+            <div style={{ marginBottom: "12px" }}>
+              <label htmlFor="productCategory" style={labelStyle}>{contentLang === "kn" ? "ವರ್ಗ (ಕನ್ನಡ):" : "Category (English):"}</label>
+              <input
+                id="productCategory"
+                type="text"
+                list={contentLang === "kn" ? "categoryOptionsKn" : "categoryOptionsEn"}
+                value={contentLang === "kn" ? category : categoryEn}
+                onChange={(e) => (contentLang === "kn" ? setCategory : setCategoryEn)(e.target.value)}
+                placeholder={contentLang === "kn" ? "ಉದಾ: ಬೆಳೆ ಪೋಷಕಾಂಶಗಳು" : "e.g. Crop Nutrients"}
+                style={inputStyle}
+              />
+              <datalist id="categoryOptionsKn">
+                {[...new Set(["ಸಾವಯವ ಗೊಬ್ಬರಗಳು", "ಬೆಳೆ ಪೋಷಕಾಂಶಗಳು", "ಬೆಳೆ ಸಂರಕ್ಷಣೆ", "ಕೃಷಿ ಪರಿಕರಗಳು", ...products.map((p) => p.category).filter(Boolean)])].map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
+              <datalist id="categoryOptionsEn">
+                {[...new Set(["Organic Fertilizers", "Crop Nutrients", "Crop Protection", "Farm Tools", ...products.map((p) => p.category_en).filter(Boolean)])].map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
+            </div>
+            <div style={{ marginBottom: "12px" }}>
+              <label htmlFor="productHighlights" style={labelStyle}>{contentLang === "kn" ? "ಮುಖ್ಯಾಂಶಗಳು (ಕನ್ನಡ):" : "Key Highlights (English):"}</label>
+              <textarea
+                id="productHighlights"
+                value={contentLang === "kn" ? highlights : highlightsEn}
+                onChange={(e) => (contentLang === "kn" ? setHighlights : setHighlightsEn)(e.target.value)}
+                rows="4"
+                placeholder={
+                  contentLang === "kn"
+                    ? "ಪ್ರತಿ ಸಾಲು ಒಂದು ಅಂಶ, ಉದಾ:\nತೆಂಗು, ಅಡಿಕೆ ಬೆಳೆಗಳಿಗೆ ಸೂಕ್ತ\nಬೇರಿನ ಬೆಳವಣಿಗೆ ಹೆಚ್ಚಿಸುತ್ತದೆ\nಬಳಕೆ: 1 ಲೀಟರ್ ನೀರಿಗೆ 2 ml"
+                    : "One point per line, e.g.:\nSuitable for coconut and arecanut\nImproves root growth\nUsage: 2 ml per litre of water"
+                }
+                style={inputStyle}
+              />
+              <p style={hintStyle}>ಪ್ರಾಡಕ್ಟ್ ಪುಟದಲ್ಲಿ ಬುಲೆಟ್ ಪಾಯಿಂಟ್‌ಗಳಾಗಿ ಕಾಣಿಸುತ್ತದೆ.</p>
+            </div>
+            <div>
+              <label htmlFor="productDescription" style={labelStyle}>{contentLang === "kn" ? "ವಿವರಣೆ (ಕನ್ನಡ):" : "Description (English):"}</label>
+              <textarea
+                id="productDescription"
+                value={contentLang === "kn" ? description : descriptionEn}
+                onChange={(e) => (contentLang === "kn" ? setDescription : setDescriptionEn)(e.target.value)}
+                rows="4"
+                placeholder={contentLang === "kn" ? "ಪ್ರಾಡಕ್ಟ್ ವಿವರಣೆ, ಬಳಕೆಯ ವಿಧಾನ, ಘಟಕಾಂಶಗಳು..." : "Product description, how to use, ingredients..."}
+                style={inputStyle}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginBottom: "12px" }}>
           <div style={{ flex: "1 1 160px" }}>
             <label htmlFor="productWeight" style={labelStyle}>ಪ್ಯಾಕಿಂಗ್ (Packing):</label>
             <input
@@ -372,30 +460,6 @@ export default function AdminDashboard() {
             "MRP ಹಾಕಿದರೆ ರಿಯಾಯಿತಿ (% OFF) ತಾನಾಗೇ ಲೆಕ್ಕವಾಗಿ ಕಾಣಿಸುತ್ತದೆ."
           )}
         </p>
-        <div style={{ marginBottom: "12px" }}>
-          <label htmlFor="productHighlights" style={labelStyle}>ಪ್ರಮುಖ ಅಂಶಗಳು (Key Highlights):</label>
-          <textarea
-            id="productHighlights"
-            value={highlights}
-            onChange={(e) => setHighlights(e.target.value)}
-            rows="4"
-            placeholder={"ಪ್ರತಿ ಸಾಲು ಒಂದು ಅಂಶ, ಉದಾ:\nತೆಂಗು, ಅಡಿಕೆ ಬೆಳೆಗಳಿಗೆ ಸೂಕ್ತ\nಬೇರಿನ ಬೆಳವಣಿಗೆ ಹೆಚ್ಚಿಸುತ್ತದೆ\nಬಳಕೆ: 1 ಲೀಟರ್ ನೀರಿಗೆ 2 ml"}
-            style={inputStyle}
-          />
-          <p style={hintStyle}>ಪ್ರಾಡಕ್ಟ್ ಪುಟದ &quot;About this item&quot; ನಲ್ಲಿ ಬುಲೆಟ್ ಪಾಯಿಂಟ್‌ಗಳಾಗಿ ಕಾಣಿಸುತ್ತದೆ.</p>
-        </div>
-        <div style={{ marginBottom: "12px" }}>
-          <label htmlFor="productDescription" style={labelStyle}>ವಿವರಣೆ (Description):</label>
-          <textarea
-            id="productDescription"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows="4"
-            placeholder="ಪ್ರಾಡಕ್ಟ್ ವಿವರಣೆ, ಬಳಕೆಯ ವಿಧಾನ, ಘಟಕಾಂಶಗಳು..."
-            style={inputStyle}
-          />
-        </div>
-
         <div style={{ marginBottom: "12px" }}>
           <label htmlFor="productImages" style={labelStyle}>
             ಪ್ರಾಡಕ್ಟ್ ಫೋಟೋಗಳು (Images) — {images.length}/{MAX_IMAGES}
@@ -521,7 +585,13 @@ export default function AdminDashboard() {
                   <div style={{ width: "64px", height: "64px", background: "#f0f0f0", borderRadius: "4px", flexShrink: 0 }} />
                 )}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <h4 style={{ margin: "0 0 3px 0", color: "#333" }}>{p.name}</h4>
+                  <h4 style={{ margin: "0 0 3px 0", color: "#333" }}>
+                    {p.name}
+                    {p.name_en && p.name_en !== p.name ? <span style={{ color: "#777", fontWeight: "normal" }}> / {p.name_en}</span> : null}
+                    <span style={{ fontSize: "11px", fontWeight: "normal", color: p.name_en ? "#2e7d32" : "#999", marginLeft: "6px" }}>
+                      {p.name_en ? "ಕ + EN" : "ಕ ಮಾತ್ರ"}
+                    </span>
+                  </h4>
                   <p style={{ margin: "0 0 4px 0", fontSize: "13px" }}>
                     <b>₹{p.price}</b>
                     {discountPercent(p.price, p.mrp) > 0 && (

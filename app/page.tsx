@@ -15,6 +15,7 @@ import { useLanguage } from "./components/i18n/LanguageProvider";
 import { formatRupees, WHATSAPP_NUMBER } from "@/lib/whatsapp";
 import { discountPercent, isInStock } from "@/lib/pricing";
 import { translate, type TranslationKey } from "@/lib/i18n";
+import { localizeProduct, searchableText } from "@/lib/localize";
 import {
   Search, ShoppingCart, Phone, MapPin,
   Leaf, ShieldCheck, Sprout, Wrench,
@@ -36,6 +37,9 @@ interface Product {
   image_url?: string | null;
   image_urls?: string[] | null;
   video_url?: string | null;
+  name_en?: string | null;
+  category_en?: string | null;
+  description_en?: string | null;
 }
 
 const CATEGORIES: { key: TranslationKey; icon: typeof Leaf; count: number }[] = [
@@ -52,7 +56,7 @@ export default function Home() {
   const [categoryKey, setCategoryKey] = useState<TranslationKey | null>(null);
   const { addItem, openCart, count } = useCart();
   const { requireLogin } = useCustomer();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const router = useRouter();
   const [videoProduct, setVideoProduct] = useState<Product | null>(null);
   const videoYouTubeId = videoProduct?.video_url ? getYouTubeId(videoProduct.video_url) : null;
@@ -86,8 +90,9 @@ export default function Home() {
     const q = query.trim().toLowerCase();
     const catNames = categoryKey ? [translate("kn", categoryKey), translate("en", categoryKey)].map((s) => s.toLowerCase()) : [];
     return products.filter((p) => {
-      if (q && ![p.name, p.category, p.description, p.tag].some((field) => field?.toLowerCase().includes(q))) return false;
-      if (catNames.length && !catNames.some((c) => p.category?.toLowerCase().includes(c))) return false;
+      if (q && !searchableText(p).includes(q)) return false;
+      const productCats = [p.category, p.category_en].map((c) => c?.toLowerCase() ?? "");
+      if (catNames.length && !catNames.some((c) => productCats.some((pc) => pc.includes(c)))) return false;
       return true;
     });
   }, [products, query, categoryKey]);
@@ -103,6 +108,7 @@ export default function Home() {
         addItem({
           id: product.id,
           name: product.name,
+          nameEn: product.name_en,
           price: Number(product.price),
           weight: product.weight,
           image: getProductImages(product)[0] ?? null,
@@ -280,6 +286,7 @@ export default function Home() {
             {visibleProducts.map((item) => {
               const off = discountPercent(item.price, item.mrp);
               const inStock = isInStock(item);
+              const text = localizeProduct(item, lang);
               return (
                 <div
                   key={item.id}
@@ -314,9 +321,9 @@ export default function Home() {
                         </span>
                       )}
                       {getProductImages(item).length > 0 ? (
-                        <ImageCarousel images={getProductImages(item)} alt={item.name} href={`/products/${item.id}`} className="w-full h-full" />
+                        <ImageCarousel images={getProductImages(item)} alt={text.name} href={`/products/${item.id}`} className="w-full h-full" />
                       ) : (
-                        <Link href={`/products/${item.id}`} aria-label={item.name} className="w-full h-full flex items-center justify-center">
+                        <Link href={`/products/${item.id}`} aria-label={text.name} className="w-full h-full flex items-center justify-center">
                           <Sprout className="w-12 h-12 text-emerald-500" />
                         </Link>
                       )}
@@ -331,15 +338,15 @@ export default function Home() {
                     </div>
 
                     <span className="text-[11px] font-semibold text-emerald-600 uppercase">
-                      {item.category || t("products.defaultCategory")}
+                      {text.category || t("products.defaultCategory")}
                     </span>
                     <h4 className="font-bold text-sm text-slate-900 mt-1 line-clamp-2">
                       <Link href={`/products/${item.id}`} className="hover:text-emerald-700 hover:underline">
-                        {item.name}
+                        {text.name}
                       </Link>
                     </h4>
-                    {item.description && (
-                      <p className="text-xs text-slate-500 mt-1 line-clamp-2">{item.description}</p>
+                    {text.description && (
+                      <p className="text-xs text-slate-500 mt-1 line-clamp-2">{text.description}</p>
                     )}
                     {item.weight && (
                       <p className="text-xs text-slate-400 mt-1 font-medium">
@@ -394,7 +401,7 @@ export default function Home() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center px-4 py-3 border-b">
-              <h3 className="font-bold text-sm text-slate-800 line-clamp-1">{videoProduct.name}</h3>
+              <h3 className="font-bold text-sm text-slate-800 line-clamp-1">{localizeProduct(videoProduct, lang).name}</h3>
               <button
                 onClick={() => setVideoProduct(null)}
                 aria-label={t("btn.close")}

@@ -74,11 +74,15 @@ const NO_SERVICE_KEY = { error: "ಸರ್ವರ್‌ನಲ್ಲಿ SUPABASE_S
 // ಫಾರ್ಮ್‌ನಿಂದ ಬಂದ ಮಾಹಿತಿಯನ್ನು ಪರಿಶೀಲಿಸಿ ಡೇಟಾಬೇಸ್ ರೋ ತಯಾರಿಸುವುದು
 const cleanText = (value, max = 5000) => (typeof value === "string" ? value.trim().slice(0, max) : "");
 
-function buildProductRow({ name, price, mrp, category, weight, description, highlights, inStock, imageUrls, videoUrl }) {
-  const cleanName = cleanText(name, 200);
+function buildProductRow({
+  name, nameEn, price, mrp, category, categoryEn, weight, description, descriptionEn, highlights, highlightsEn, inStock, imageUrls, videoUrl,
+}) {
+  // ಕನ್ನಡ ಹೆಸರು ಅಥವಾ English ಹೆಸರು, ಕನಿಷ್ಠ ಒಂದು ಬೇಕು (name ಕಾಲಂ ಖಾಲಿ ಇರಬಾರದು, ಹಾಗಾಗಿ ಕನ್ನಡ ಇಲ್ಲದಿದ್ದರೆ English ಹೆಸರೇ ಅಲ್ಲಿ)
+  const cleanNameEn = cleanText(nameEn, 200);
+  const cleanName = cleanText(name, 200) || cleanNameEn;
   const cleanPrice = Number(price);
   if (!cleanName || !Number.isFinite(cleanPrice) || cleanPrice < 0) {
-    return { error: "ಸರಿಯಾದ ಹೆಸರು ಮತ್ತು ಆಫರ್ ಬೆಲೆ ನಮೂದಿಸಿ." };
+    return { error: "ಕನ್ನಡ ಅಥವಾ English ಹೆಸರು ಮತ್ತು ಸರಿಯಾದ ಆಫರ್ ಬೆಲೆ ನಮೂದಿಸಿ." };
   }
 
   // MRP ಐಚ್ಛಿಕ; ಕೊಟ್ಟರೆ ಆಫರ್ ಬೆಲೆಗಿಂತ ಕಡಿಮೆ ಇರಬಾರದು
@@ -107,13 +111,17 @@ function buildProductRow({ name, price, mrp, category, weight, description, high
   return {
     row: {
       name: cleanName,
+      name_en: cleanNameEn || null,
       price: cleanPrice,
       mrp: cleanMrp,
       category: cleanText(category, 100) || null,
+      category_en: cleanText(categoryEn, 100) || null,
       weight: cleanText(weight, 100) || null,
       description: cleanText(description),
+      description_en: cleanText(descriptionEn) || null,
       // ಸಾಲುಗಳ array: jsonb ಕಾಲಂಗೆ ನೇರವಾಗಿ, text ಕಾಲಂಗೆ JSON ಪಠ್ಯವಾಗಿ ಉಳಿಯುತ್ತದೆ; ಓದುವಾಗ ಎರಡನ್ನೂ highlightLines ಸರಿಯಾಗಿ ಓದುತ್ತದೆ
       highlights: highlightLines(cleanText(highlights)),
+      highlights_en: highlightLines(cleanText(highlightsEn)),
       in_stock: inStock !== false,
       image_url: images[0] ?? null,
       image_urls: images,
@@ -124,7 +132,7 @@ function buildProductRow({ name, price, mrp, category, weight, description, high
 
 function dbError(error) {
   if (error.code === "42703" || error.code === "PGRST204") {
-    return { error: "ಡೇಟಾಬೇಸ್‌ನಲ್ಲಿ ಬೇಕಾದ ಕಾಲಂ ಇಲ್ಲ (in_stock / highlights). supabase/product-pricing-stock.sql ರನ್ ಮಾಡಿ." };
+    return { error: "ಡೇಟಾಬೇಸ್‌ನಲ್ಲಿ ಬೇಕಾದ ಕಾಲಂ ಇಲ್ಲ (name_en / category_en / description_en / highlights_en). supabase/product-bilingual.sql ರನ್ ಮಾಡಿ." };
   }
   return { error: error.message };
 }

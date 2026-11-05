@@ -25,10 +25,12 @@ export default function CartDrawer() {
   }, [isOpen, closeCart]);
 
   const { requireLogin } = useCustomer();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  // ಆಯ್ಕೆ ಮಾಡಿದ ಭಾಷೆಯ ಹೆಸರು; ಇಲ್ಲದಿದ್ದರೆ ಇನ್ನೊಂದು
+  const nameOf = (i: { name: string; nameEn?: string | null }) => (lang === "en" ? i.nameEn?.trim() || i.name : i.name || i.nameEn || "");
   const orderViaWhatsApp = () =>
     requireLogin((customer) => {
-      const lines = items.map((i) => ({ name: i.name, price: i.price, quantity: i.quantity, weight: i.weight }));
+      const lines = items.map((i) => ({ name: nameOf(i), price: i.price, quantity: i.quantity, weight: i.weight }));
       window.open(whatsappOrderUrl(lines, customer), "_blank", "noopener,noreferrer");
     }, t("login.reasonOrder"));
 
@@ -80,7 +82,7 @@ export default function CartDrawer() {
                   >
                     {item.image ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                      <img src={item.image} alt={nameOf(item)} className="w-full h-full object-cover" />
                     ) : (
                       <Sprout className="w-8 h-8 text-emerald-500" />
                     )}
@@ -91,7 +93,7 @@ export default function CartDrawer() {
                       onClick={closeCart}
                       className="font-semibold text-sm text-slate-900 line-clamp-2 hover:text-emerald-700"
                     >
-                      {item.name}
+                      {nameOf(item)}
                     </Link>
                     {item.weight && <p className="text-xs text-slate-500">{item.weight}</p>}
                     <p className="text-sm font-bold text-slate-900 mt-1">{formatRupees(item.price)}</p>
@@ -99,7 +101,7 @@ export default function CartDrawer() {
                       <div className="flex items-center border border-slate-300 rounded-full overflow-hidden">
                         <button
                           onClick={() => (item.quantity <= 1 ? removeItem(item.id) : setQuantity(item.id, item.quantity - 1))}
-                          aria-label={item.quantity <= 1 ? t("cart.remove", { name: item.name }) : t("detail.qtyLess")}
+                          aria-label={item.quantity <= 1 ? t("cart.remove", { name: nameOf(item) }) : t("detail.qtyLess")}
                           className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 text-slate-700"
                         >
                           {item.quantity <= 1 ? <Trash2 className="w-4 h-4" /> : <Minus className="w-4 h-4" />}

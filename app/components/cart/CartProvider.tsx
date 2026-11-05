@@ -6,6 +6,7 @@ import CartDrawer from "./CartDrawer";
 export interface CartItem {
   id: number | string;
   name: string;
+  nameEn?: string | null;
   price: number;
   weight?: string | null;
   image?: string | null;
@@ -15,6 +16,7 @@ export interface CartItem {
 export interface CartProduct {
   id: number | string;
   name: string;
+  nameEn?: string | null;
   price: number;
   weight?: string | null;
   image?: string | null;
@@ -97,7 +99,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     const next = existing
       ? current.map((i) =>
           i.id === product.id
-            ? { ...i, name: product.name, price: Number(product.price), weight: product.weight, image: product.image, quantity: clampQty(i.quantity + quantity) }
+            ? {
+                ...i,
+                name: product.name,
+                nameEn: product.nameEn,
+                price: Number(product.price),
+                weight: product.weight,
+                image: product.image,
+                quantity: clampQty(i.quantity + quantity),
+              }
             : i
         )
       : [...current, { ...product, price: Number(product.price), quantity: clampQty(quantity) }];
