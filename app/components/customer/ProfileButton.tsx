@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { LogOut, Phone, User } from "lucide-react";
 import { useCustomer } from "./CustomerProvider";
+import Avatar from "./Avatar";
 import { useLanguage } from "../i18n/LanguageProvider";
 
 const formatPhone = (p: string) => `+91 ${p.slice(0, 5)} ${p.slice(5)}`;
@@ -52,9 +53,7 @@ export default function ProfileButton({ className = "", dark = false }: { classN
         aria-label={t("profile.label", { name: customer.name })}
         className={`flex items-center gap-2 h-10 pl-1 pr-3 rounded-full text-sm font-semibold transition ${base}`}
       >
-        <span className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold">
-          {customer.name.charAt(0).toUpperCase()}
-        </span>
+        <Avatar customer={customer} className="w-8 h-8" />
         <span className="hidden sm:inline max-w-24 truncate">{customer.name.split(" ")[0]}</span>
       </button>
 

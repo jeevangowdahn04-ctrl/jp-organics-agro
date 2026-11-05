@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getProductImages, getYouTubeId } from "@/lib/media";
 import ImageCarousel from "./components/ImageCarousel";
+import StoriesPreview from "./components/stories/StoriesPreview";
 import CartButton from "./components/cart/CartButton";
 import { useCart } from "./components/cart/CartProvider";
 import { useCustomer } from "./components/customer/CustomerProvider";
@@ -414,6 +415,8 @@ export default function Home() {
         )}
       </section>
 
+      <StoriesPreview />
+
       {/* Product Video Modal */}
       {videoProduct?.video_url && (
         <div
@@ -465,6 +468,7 @@ export default function Home() {
         <nav className="flex justify-center gap-6 mb-5 text-sm font-semibold">
           <a href="#" className="hover:text-white">{t("nav.home")}</a>
           <a href="#categories" className="hover:text-white">{t("nav.categories")}</a>
+          <Link href="/stories" className="hover:text-white">{t("nav.stories")}</Link>
           <a href="tel:7795198610" className="hover:text-white">{t("nav.contact")}</a>
         </nav>
         <p className="font-bold text-sm text-white mb-2">JP ORGANICS AND AGRO CENTER</p>

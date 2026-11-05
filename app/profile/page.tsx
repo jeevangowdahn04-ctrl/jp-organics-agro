@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, Check, CheckCircle2, ChevronRight, Loader2, LogOut, MapPin, MessageCircle, Package, Pencil, Phone, User } from "lucide-react";
+import { AlertCircle, Camera, Sprout, Check, CheckCircle2, ChevronRight, Loader2, LogOut, MapPin, MessageCircle, Package, Pencil, Phone, User } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import AdminLoginSection from "../components/admin/AdminLoginSection";
 import { useLanguage } from "../components/i18n/LanguageProvider";
@@ -12,6 +12,8 @@ import { WHATSAPP_NUMBER } from "@/lib/whatsapp";
 import { useOrderHistory } from "@/lib/orderHistory";
 import { ADDRESS_FIELDS, EMPTY_ADDRESS, PINCODE_PATTERN, type DeliveryAddress } from "@/lib/address";
 import { lookupPincode } from "@/lib/pincode";
+import { fileToAvatar } from "@/lib/avatar";
+import Avatar from "../components/customer/Avatar";
 
 const formatPhone = (p: string) => `+91 ${p.slice(0, 5)} ${p.slice(5)}`;
 
@@ -271,6 +273,53 @@ function ProfileForm({ initial, onSave, onCancel }: { initial: Customer | null; 
   );
 }
 
+// ಪ್ರೊಫೈಲ್ ಫೋಟೋ: ಕ್ಯಾಮೆರಾ ಬಟನ್ ಒತ್ತಿದರೆ ಫೋನ್‌ನ ಕ್ಯಾಮೆರಾ / ಗ್ಯಾಲರಿ ಆಯ್ಕೆ; ಚಿಕ್ಕದಾಗಿಸಿ ಬ್ರೌಸರ್‌ನಲ್ಲಿ ಉಳಿಸುವುದು
+function ProfilePhoto({ customer, onChange }: { customer: Customer; onChange: (avatar: string | null) => void }) {
+  const { t } = useLanguage();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const pick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setError("");
+    setBusy(true);
+    try {
+      onChange(await fileToAvatar(file));
+    } catch {
+      setError(t("photo.error"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="flex-none flex flex-col items-center gap-1">
+      <div className="relative">
+        <Avatar customer={customer} className="w-16 h-16 text-2xl" />
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={busy}
+          aria-label={customer.avatar ? t("photo.change") : t("photo.add")}
+          className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-white border border-slate-300 shadow flex items-center justify-center text-slate-700 hover:bg-emerald-50"
+        >
+          {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
+        </button>
+        <input ref={inputRef} type="file" accept="image/*" onChange={pick} className="hidden" aria-hidden="true" tabIndex={-1} />
+      </div>
+      {customer.avatar && (
+        <button type="button" onClick={() => onChange(null)} className="text-[10px] text-slate-500 hover:text-red-600">
+          {t("photo.remove")}
+        </button>
+      )}
+      {error && <p className="text-[10px] text-red-600 max-w-20 text-center">{error}</p>}
+    </div>
+  );
+}
+
 export default function ProfilePage() {
   const { t, lang, setLang } = useLanguage();
   const { customer, saveProfile, logout } = useCustomer();
@@ -318,9 +367,7 @@ export default function ProfilePage() {
           ) : (
             <div className="space-y-4">
               <div className="flex items-center gap-4">
-                <span className="w-14 h-14 rounded-full bg-emerald-600 text-white text-2xl font-bold flex items-center justify-center flex-none">
-                  {customer.name.charAt(0).toUpperCase()}
-                </span>
+                <ProfilePhoto customer={customer} onChange={(avatar) => saveProfile({ ...customer, avatar })} />
                 <div className="min-w-0 flex-1">
                   <p className="text-lg font-bold truncate">{customer.name}</p>
                   <p className="text-sm text-slate-600 flex items-center gap-1 whitespace-nowrap">
@@ -371,6 +418,12 @@ export default function ProfilePage() {
             {orders.length > 0 && (
               <span className="text-xs font-bold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">{orders.length}</span>
             )}
+            <ChevronRight className="w-4 h-4 text-slate-400" />
+          </Link>
+
+          <Link href="/stories" className="flex items-center gap-3 px-5 py-4 hover:bg-slate-50">
+            <Sprout className="w-5 h-5 text-emerald-700" />
+            <span className="flex-1 font-semibold">{t("nav.stories")}</span>
             <ChevronRight className="w-4 h-4 text-slate-400" />
           </Link>
 

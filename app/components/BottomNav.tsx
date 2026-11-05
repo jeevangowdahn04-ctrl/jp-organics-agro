@@ -79,7 +79,14 @@ export default function BottomNav() {
       </Link>
       <Link href="/profile" onClick={() => setCategoriesFor(null)} aria-current={active === "profile" ? "page" : undefined} className={item("profile")}>
         {indicator("profile")}
-        {profileInitial ? (
+        {hydrated && customer?.avatar ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={customer.avatar}
+            alt=""
+            className={`w-5 h-5 rounded-full object-cover ${active === "profile" ? "ring-2 ring-emerald-600" : ""}`}
+          />
+        ) : profileInitial ? (
           <span
             className={`w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center ${
               active === "profile" ? "bg-emerald-600 text-white" : "bg-slate-200 text-slate-700"

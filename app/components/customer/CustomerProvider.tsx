@@ -3,11 +3,13 @@
 import React, { createContext, useCallback, useContext, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import LoginModal from "./LoginModal";
 import { cleanAddress, type DeliveryAddress } from "@/lib/address";
+import { isAvatarDataUrl } from "@/lib/avatar";
 
 export interface Customer {
   name: string;
   phone: string; // 10 ಅಂಕಿ, +91 ಇಲ್ಲದೆ
   address?: DeliveryAddress | null;
+  avatar?: string | null; // ಪ್ರೊಫೈಲ್ ಫೋಟೋ (ಚಿಕ್ಕ JPEG data URL, ಬ್ರೌಸರ್‌ನಲ್ಲಿ ಮಾತ್ರ)
 }
 
 // ಗ್ರಾಹಕರ ಲಾಗಿನ್ ಈ ಬ್ರೌಸರ್‌ನಲ್ಲೇ ಉಳಿಯುತ್ತದೆ (Logout ಮಾಡುವವರೆಗೆ ಮತ್ತೆ ಕೇಳುವುದಿಲ್ಲ).
@@ -22,7 +24,7 @@ function readStored(): Customer | null {
   try {
     const parsed = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || "null");
     if (!parsed || typeof parsed.name !== "string" || !PHONE_PATTERN.test(parsed.phone)) return null;
-    return { name: parsed.name, phone: parsed.phone, address: cleanAddress(parsed.address) };
+    return { name: parsed.name, phone: parsed.phone, address: cleanAddress(parsed.address), avatar: isAvatarDataUrl(parsed.avatar) ? parsed.avatar : null };
   } catch {
     return null;
   }
@@ -94,7 +96,13 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
         setModal({ open: true });
       },
       logout: () => setCustomer(null),
-      saveProfile: (c) => setCustomer({ name: c.name, phone: c.phone, address: cleanAddress(c.address) }),
+      saveProfile: (c) =>
+        setCustomer({
+          name: c.name,
+          phone: c.phone,
+          address: cleanAddress(c.address),
+          avatar: c.avatar === undefined ? getSnapshot()?.avatar ?? null : isAvatarDataUrl(c.avatar) ? c.avatar : null,
+        }),
       requireLogin,
     }),
     [customer, requireLogin]
@@ -108,7 +116,8 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
   const onLogin = (c: Customer) => {
     // ಈ ಬ್ರೌಸರ್‌ನಲ್ಲಿ ಹಿಂದೆ ಉಳಿಸಿದ ವಿಳಾಸವಿದ್ದರೆ (ಅದೇ ಸಂಖ್ಯೆಗೆ) ಅದನ್ನು ಉಳಿಸಿಕೊಳ್ಳುವುದು
     const previous = getSnapshot();
-    setCustomer({ ...c, address: c.address ?? (previous?.phone === c.phone ? previous.address : null) });
+    const samePerson = previous?.phone === c.phone;
+    setCustomer({ ...c, address: c.address ?? (samePerson ? previous.address : null), avatar: samePerson ? previous.avatar ?? null : null });
     setModal({ open: false });
     const action = pending.current;
     pending.current = null;
