@@ -605,10 +605,10 @@ export default function Home() {
             <Link href="/stories" className="hover:text-white">{t("nav.stories")}</Link>
             <Link href="/search" className="hover:text-white">{t("nav.search")}</Link>
             <Link href="/reels" className="hover:text-white">{t("nav.reels")}</Link>
-            <a href="tel:7795198610" className="hover:text-white">{t("nav.contact")}</a>
+            <a href="tel:+916360628048" className="hover:text-white">{t("nav.contact")}</a>
           </nav>
           <div className="flex flex-wrap justify-center gap-3 md:flex-col md:items-start">
-            <a href="tel:7795198610" className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-full">
+            <a href="tel:+916360628048" className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-full">
               <Phone className="w-3.5 h-3.5" /> {t("footer.call")}
             </a>
             <a

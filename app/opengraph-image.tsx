@@ -55,7 +55,7 @@ export default function OpengraphImage() {
             Order on WhatsApp
           </div>
           <div style={{ display: "flex", border: "2px solid #a7f3d0", fontSize: 30, padding: "12px 28px", borderRadius: 999 }}>
-            Helpline 7795198610
+            Helpline 6360628048
           </div>
         </div>
       </div>

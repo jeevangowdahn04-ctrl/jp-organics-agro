@@ -287,7 +287,7 @@ export default function ProductDetail({ id }: { id: string }) {
               </>
             ) : (
               <a
-                href="tel:7795198610"
+                href="tel:+916360628048"
                 className="flex-1 bg-slate-200 text-slate-700 font-bold py-3 rounded-full flex items-center justify-center gap-2"
               >
                 <Phone className="w-5 h-5" /> {t("btn.outOfStockCall")}
@@ -299,7 +299,7 @@ export default function ProductDetail({ id }: { id: string }) {
           <div className="grid grid-cols-3 gap-2 text-center text-[11px] text-slate-600 border-y py-3">
             <div className="flex flex-col items-center gap-1"><Truck className="w-5 h-5 text-emerald-700" /> {t("detail.trustDelivery")}</div>
             <div className="flex flex-col items-center gap-1"><ShieldCheck className="w-5 h-5 text-emerald-700" /> {t("detail.trustQuality")}</div>
-            <a href="tel:7795198610" className="flex flex-col items-center gap-1 hover:text-emerald-700"><Phone className="w-5 h-5 text-emerald-700" /> {t("detail.trustAdvice")}</a>
+            <a href="tel:+916360628048" className="flex flex-col items-center gap-1 hover:text-emerald-700"><Phone className="w-5 h-5 text-emerald-700" /> {t("detail.trustAdvice")}</a>
           </div>
 
         </section>

@@ -551,10 +551,10 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          <a href="tel:7795198610" className="flex items-center gap-3 px-5 py-4 hover:bg-slate-50">
+          <a href="tel:+916360628048" className="flex items-center gap-3 px-5 py-4 hover:bg-slate-50">
             <Phone className="w-5 h-5 text-emerald-700" />
             <span className="flex-1 font-semibold">{t("profile.help")}</span>
-            <span className="text-sm text-slate-500">7795198610</span>
+            <span className="text-sm text-slate-500">6360628048</span>
           </a>
           <a
             href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(t("hero.whatsappText"))}`}
