@@ -21,7 +21,7 @@ export default function StoriesPreview() {
   }, []);
 
   return (
-    <section id="stories" className="max-w-6xl mx-auto px-4 py-8 scroll-mt-24">
+    <section id="stories" className="max-w-6xl xl:max-w-7xl mx-auto px-4 py-8 scroll-mt-24">
       <div className="flex items-end justify-between gap-3 mb-5 flex-wrap">
         <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
           <Sprout className="w-5 h-5 text-emerald-600" /> {t("stories.homeTitle")}
@@ -34,7 +34,7 @@ export default function StoriesPreview() {
       </div>
 
       {stories.length > 0 && (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-4">
           {stories.map((s) => (
             <StoryCard key={s.id} story={s} compact />
           ))}

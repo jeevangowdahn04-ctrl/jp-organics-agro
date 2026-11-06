@@ -25,7 +25,7 @@ export default function OrdersPage() {
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-24 md:pb-8">
       <PageHeader title={t("orders.title")} />
 
-      <main className="max-w-3xl mx-auto px-4 py-5 space-y-4">
+      <main className="max-w-3xl lg:max-w-6xl xl:max-w-7xl mx-auto px-4 py-5 space-y-4">
         <p className="text-xs text-slate-500 bg-white border rounded-lg px-3 py-2">{t("orders.note")}</p>
 
         {orders.length === 0 ? (
@@ -43,7 +43,7 @@ export default function OrdersPage() {
             </Link>
           </div>
         ) : (
-          <>
+          <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
             {orders.map((order) => {
               const date = formatDate(order.createdAt);
               const count = order.lines.reduce((s, l) => s + l.quantity, 0);
@@ -106,7 +106,7 @@ export default function OrdersPage() {
                 {t("orders.clear")}
               </button>
             </div>
-          </>
+          </div>
         )}
       </main>
     </div>

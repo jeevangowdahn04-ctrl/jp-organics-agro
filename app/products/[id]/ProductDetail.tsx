@@ -1,5 +1,6 @@
 "use client";
 
+import SiteNav from "../../components/SiteNav";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, CheckCircle2, Loader2, MapPin, Minus, Phone, Plus, ShieldCheck, ShoppingCart, Sprout, Star, Truck, Zap } from "lucide-react";
@@ -91,7 +92,7 @@ export default function ProductDetail({ id }: { id: string }) {
 
   const header = (
     <header className="bg-emerald-900 text-white sticky top-0 z-40 shadow">
-      <div className="max-w-6xl mx-auto px-4 py-2.5 flex items-center justify-between gap-4">
+      <div className="max-w-6xl xl:max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-between gap-4">
         <Link href="/" className="flex items-center gap-2 text-sm font-semibold hover:text-emerald-200">
           <ArrowLeft className="w-5 h-5" /> <span className="hidden sm:inline">{t("header.allProducts")}</span>
         </Link>
@@ -102,6 +103,7 @@ export default function ProductDetail({ id }: { id: string }) {
           <CartButton className="bg-white/10 hover:bg-white/20 [&_svg]:text-white" />
         </div>
       </div>
+      <SiteNav dark />
     </header>
   );
 
@@ -149,7 +151,7 @@ export default function ProductDetail({ id }: { id: string }) {
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-24 md:pb-0">
       {header}
 
-      <main className="max-w-6xl mx-auto md:px-4 md:py-6 grid md:grid-cols-2 gap-0 md:gap-8">
+      <main className="max-w-6xl xl:max-w-7xl mx-auto md:px-4 md:py-6 grid md:grid-cols-2 gap-0 md:gap-8">
         {/* ಫೋಟೋ ಸ್ಲೈಡರ್ (swipe + dots + ಕ್ಲಿಕ್ ಮಾಡಿದರೆ ಪೂರ್ಣ ಪರದೆ) */}
         <section className="bg-white md:rounded-2xl md:border md:p-3 md:self-start md:sticky md:top-20">
           {images.length > 0 ? (

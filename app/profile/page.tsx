@@ -432,15 +432,17 @@ export default function ProfilePage() {
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-24 md:pb-8">
       <PageHeader title={t("profile.title")} />
 
-      <main className="max-w-3xl mx-auto px-4 py-5 space-y-4">
+      <main className="max-w-3xl lg:max-w-6xl xl:max-w-7xl mx-auto px-4 py-5 space-y-4">
         {justSaved && (
           <p role="status" className="flex items-start gap-2 text-sm bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl px-4 py-3">
             <CheckCircle2 className="w-5 h-5 flex-none" /> {t("profile.saved")}
           </p>
         )}
 
+        {/* ಲ್ಯಾಪ್‌ಟಾಪ್: ಎಡಕ್ಕೆ ವಿವರ + ಆಯ್ಕೆಗಳು, ಬಲಕ್ಕೆ ರೈತ ಸಮುದಾಯ; ಮೊಬೈಲ್/ಟ್ಯಾಬ್ಲೆಟ್: ಒಂದರ ಕೆಳಗೊಂದು */}
+        <div className="space-y-4 lg:space-y-0 lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-6 lg:items-start">
         {/* ಗ್ರಾಹಕರ ವಿವರ ಮತ್ತು ವಿಳಾಸ */}
-        <section className="bg-white border rounded-2xl p-5">
+        <section className="bg-white border rounded-2xl p-5 lg:col-start-1 lg:row-start-1">
           {!customer || editing ? (
             <>
               {!customer && (
@@ -502,6 +504,7 @@ export default function ProfilePage() {
           )}
         </section>
 
+        <div className="lg:col-start-2 lg:row-start-1 lg:row-span-2">
         {customer ? (
           <MyCommunity customer={customer} />
         ) : (
@@ -510,8 +513,10 @@ export default function ProfilePage() {
           </p>
         )}
 
+        </div>
+
         {/* ಆಯ್ಕೆಗಳು */}
-        <section className="bg-white border rounded-2xl divide-y">
+        <section className="bg-white border rounded-2xl divide-y lg:col-start-1 lg:row-start-2">
           <Link href="/orders" className="flex items-center gap-3 px-5 py-4 hover:bg-slate-50">
             <Package className="w-5 h-5 text-emerald-700" />
             <span className="flex-1 font-semibold">{t("nav.orders")}</span>
@@ -576,6 +581,7 @@ export default function ProfilePage() {
           )}
         </section>
 
+        </div>
       </main>
     </div>
   );

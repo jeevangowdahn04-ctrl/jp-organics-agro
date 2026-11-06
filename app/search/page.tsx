@@ -77,8 +77,8 @@ export default function SearchPage() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-24 md:pb-8">
       <PageHeader title={t("community.searchTitle")} />
-      <main className="max-w-3xl mx-auto px-4 py-4 space-y-5">
-        <div className="relative sticky top-14 z-10">
+      <main className="max-w-3xl lg:max-w-6xl xl:max-w-7xl mx-auto px-4 py-4 space-y-5">
+        <div className="relative sticky top-14 md:top-28 z-10 max-w-3xl">
           <Search className="w-5 h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="search"
@@ -107,7 +107,7 @@ export default function SearchPage() {
         {productHits.length > 0 && (
           <section>
             <h2 className="text-sm font-bold text-slate-700 mb-2">{t("community.products")}</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
               {productHits.map((p) => {
                 const img = getProductImages(p)[0];
                 const name = lang === "en" && p.name_en ? p.name_en : p.name;
@@ -144,7 +144,7 @@ export default function SearchPage() {
               <p className="text-sm text-slate-500 text-center py-8">{q ? (productHits.length ? "" : t("community.noResults")) : t("community.noFarmersYet")}</p>
             )
           ) : (
-            <div className="space-y-2">
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
               {farmers.map((f) => (
                 <FarmerCard key={f.id} farmer={f} />
               ))}

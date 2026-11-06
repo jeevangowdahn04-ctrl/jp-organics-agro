@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { getProductImages, getYouTubeId } from "@/lib/media";
 import ImageCarousel from "./components/ImageCarousel";
 import StoriesPreview from "./components/stories/StoriesPreview";
+import SiteNav from "./components/SiteNav";
 import CartButton from "./components/cart/CartButton";
 import { useCart } from "./components/cart/CartProvider";
 import { useCustomer } from "./components/customer/CustomerProvider";
@@ -151,7 +152,7 @@ export default function Home() {
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans relative pb-16 md:pb-0">
       {/* Top Banner */}
       <div className="bg-emerald-900 text-white text-xs py-2 px-4">
-        <div className="max-w-6xl mx-auto flex flex-wrap justify-between items-center gap-2">
+        <div className="max-w-6xl xl:max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-2">
           <div className="flex items-center gap-2">
             <MapPin className="w-4 h-4 text-emerald-400" />
             <span>{t("banner.location")}</span>
@@ -167,7 +168,7 @@ export default function Home() {
 
       {/* Main Header */}
       <header className="bg-white border-b sticky top-0 z-40 shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+        <div className="max-w-6xl xl:max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <Link href="/" data-admin-tap className="flex items-center gap-2 flex-none select-none">
             <div className="w-10 h-10 bg-emerald-600 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow">
               JP
@@ -195,6 +196,7 @@ export default function Home() {
           </div>
         </div>
         <div className="px-4 pb-3 md:hidden">{searchBox("w-full")}</div>
+        <SiteNav />
       </header>
 
       {isAdmin && (
@@ -203,7 +205,7 @@ export default function Home() {
 
       {/* Hero Banner */}
       <section className="bg-gradient-to-r from-emerald-800 to-emerald-950 text-white py-12 px-4">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8">
+        <div className="max-w-6xl xl:max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8">
           <div className="space-y-4 max-w-xl text-center md:text-left">
             <span className="inline-block bg-emerald-700/80 text-emerald-200 text-xs px-3 py-1 rounded-full font-medium border border-emerald-600">
               {t("hero.badge")}
@@ -248,7 +250,7 @@ export default function Home() {
       </section>
 
       {/* Categories */}
-      <section id="categories" className="max-w-6xl mx-auto px-4 py-10 scroll-mt-24">
+      <section id="categories" className="max-w-6xl xl:max-w-7xl mx-auto px-4 py-10 scroll-mt-24">
         <h3 className="text-xl font-bold text-slate-800 mb-6">{t("categories.title")}</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {CATEGORIES.map((cat) => {
@@ -276,7 +278,7 @@ export default function Home() {
       </section>
 
       {/* Dynamic Products from Supabase */}
-      <section id="products" className="max-w-6xl mx-auto px-4 py-8 scroll-mt-24">
+      <section id="products" className="max-w-6xl xl:max-w-7xl mx-auto px-4 py-8 scroll-mt-24">
         <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
           <h3 className="text-xl font-bold text-slate-800">{t("products.title")}</h3>
           {activeFilter && (
@@ -299,7 +301,7 @@ export default function Home() {
             {activeFilter ? t("products.noMatch", { q: activeFilter }) : t("products.empty")}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
             {visibleProducts.map((item) => {
               const off = discountPercent(item.price, item.mrp);
               const inStock = isInStock(item);
@@ -463,32 +465,36 @@ export default function Home() {
         />
       )}
 
-      {/* Footer */}
-      <footer id="contact" className="bg-slate-900 text-slate-300 mt-16 py-8 border-t border-slate-800 text-center text-xs scroll-mt-24">
-        <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2 mb-5 text-sm font-semibold">
-          <a href="#" className="hover:text-white">{t("nav.home")}</a>
-          <a href="#categories" className="hover:text-white">{t("nav.categories")}</a>
-          <Link href="/stories" className="hover:text-white">{t("nav.stories")}</Link>
-          <Link href="/search" className="hover:text-white">{t("nav.search")}</Link>
-          <Link href="/reels" className="hover:text-white">{t("nav.reels")}</Link>
-          <a href="tel:7795198610" className="hover:text-white">{t("nav.contact")}</a>
-        </nav>
-        <p className="font-bold text-sm text-white mb-2">JP ORGANICS AND AGRO CENTER</p>
-        <p className="text-slate-400 mb-3">{t("footer.address")}</p>
-        <div className="flex justify-center gap-3 mb-4">
-          <a href="tel:7795198610" className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-full">
-            <Phone className="w-3.5 h-3.5" /> {t("footer.call")}
-          </a>
-          <a
-            href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(t("hero.whatsappText"))}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-full"
-          >
-            <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
-          </a>
+      {/* Footer: ಮೊಬೈಲ್‌ನಲ್ಲಿ ಮಧ್ಯದಲ್ಲಿ ಒಂದರ ಕೆಳಗೊಂದು, ಟ್ಯಾಬ್ಲೆಟ್/ಲ್ಯಾಪ್‌ಟಾಪ್‌ನಲ್ಲಿ 3 ಕಾಲಂ */}
+      <footer id="contact" className="bg-slate-900 text-slate-300 mt-16 border-t border-slate-800 text-xs scroll-mt-24">
+        <div className="max-w-6xl xl:max-w-7xl mx-auto px-4 py-8 md:py-10 grid gap-8 text-center md:grid-cols-3 md:text-left">
+          <div className="space-y-2">
+            <p className="font-bold text-sm text-white">JP ORGANICS AND AGRO CENTER</p>
+            <p className="text-slate-400 leading-relaxed">{t("footer.address")}</p>
+          </div>
+          <nav aria-label={t("nav.main")} className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm font-semibold md:flex-col md:items-start md:gap-2">
+            <a href="#" className="hover:text-white">{t("nav.home")}</a>
+            <a href="#categories" className="hover:text-white">{t("nav.categories")}</a>
+            <Link href="/stories" className="hover:text-white">{t("nav.stories")}</Link>
+            <Link href="/search" className="hover:text-white">{t("nav.search")}</Link>
+            <Link href="/reels" className="hover:text-white">{t("nav.reels")}</Link>
+            <a href="tel:7795198610" className="hover:text-white">{t("nav.contact")}</a>
+          </nav>
+          <div className="flex flex-wrap justify-center gap-3 md:flex-col md:items-start">
+            <a href="tel:7795198610" className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-full">
+              <Phone className="w-3.5 h-3.5" /> {t("footer.call")}
+            </a>
+            <a
+              href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(t("hero.whatsappText"))}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-full"
+            >
+              <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
+            </a>
+          </div>
         </div>
-        <p className="text-slate-500">{t("footer.rights")}</p>
+        <p className="border-t border-slate-800 py-4 px-4 text-center text-slate-500">{t("footer.rights")}</p>
       </footer>
 
     </div>

@@ -82,7 +82,7 @@ export default function BottomNav() {
       <Link href="/orders" onClick={() => setCategoriesFor(null)} aria-current={active === "orders" ? "page" : undefined} className={item("orders")}>
         {indicator("orders")}
         <Package className={iconClass("orders")} />
-        {t("nav.orders")}
+        {t("nav.ordersShort")}
       </Link>
       <Link href="/reels" onClick={() => setCategoriesFor(null)} aria-current={active === "reels" ? "page" : undefined} className={item("reels")}>
         {indicator("reels")}

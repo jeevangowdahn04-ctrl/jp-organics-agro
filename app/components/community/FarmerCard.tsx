@@ -11,7 +11,7 @@ import type { FarmerProfile } from "@/lib/community";
 export default function FarmerCard({ farmer, onClick, right }: { farmer: FarmerProfile; onClick?: () => void; right?: React.ReactNode }) {
   const { t } = useLanguage();
   return (
-    <div className="flex items-center gap-3 bg-white border rounded-2xl px-3 py-2.5">
+    <div className="flex items-center gap-3 min-w-0 bg-white border rounded-2xl px-3 py-2.5">
       <Link href={`/farmer/${farmer.id}`} onClick={onClick} className="flex items-center gap-3 min-w-0 flex-1">
         <Avatar customer={{ name: farmer.name, avatar: farmer.avatar_url }} className="w-12 h-12 text-lg flex-none" />
         <span className="min-w-0 flex-1">
