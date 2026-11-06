@@ -1,5 +1,6 @@
 "use server";
 
+import { categoryOf } from "@/lib/categories";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import {
@@ -108,7 +109,7 @@ const NO_SERVICE_KEY = { error: "ಸರ್ವರ್‌ನಲ್ಲಿ SUPABASE_S
 const cleanText = (value, max = 5000) => (typeof value === "string" ? value.trim().slice(0, max) : "");
 
 function buildProductRow({
-  name, nameEn, price, mrp, category, categoryEn, weight, description, descriptionEn, highlights, highlightsEn, inStock, imageUrls, videoUrl, brandId,
+  name, nameEn, price, mrp, category, categoryEn, weight, description, descriptionEn, highlights, highlightsEn, inStock, imageUrls, videoUrl, brandId, subcategoryId,
 }) {
   // ಕನ್ನಡ ಹೆಸರು ಅಥವಾ English ಹೆಸರು, ಕನಿಷ್ಠ ಒಂದು ಬೇಕು (name ಕಾಲಂ ಖಾಲಿ ಇರಬಾರದು, ಹಾಗಾಗಿ ಕನ್ನಡ ಇಲ್ಲದಿದ್ದರೆ English ಹೆಸರೇ ಅಲ್ಲಿ)
   const cleanNameEn = cleanText(nameEn, 200);
@@ -147,10 +148,17 @@ function buildProductRow({
     return { error: "ಬ್ರಾಂಡ್ ಸರಿಯಿಲ್ಲ." };
   }
 
+  // ಉಪವರ್ಗ (ಐಚ್ಛಿಕ): ವರ್ಗಕ್ಕೆ ಹೊಂದುತ್ತದೆಯೇ ಎಂದು ಸೇವ್ ಮಾಡುವಾಗ ಪರಿಶೀಲನೆ (checkSubcategory)
+  const cleanSub = subcategoryId === "" || subcategoryId === null || subcategoryId === undefined ? null : Number(subcategoryId);
+  if (cleanSub !== null && (!Number.isInteger(cleanSub) || cleanSub <= 0)) {
+    return { error: "ಉಪವರ್ಗ ಸರಿಯಿಲ್ಲ." };
+  }
+
   return {
     row: {
       name: cleanName,
       brand_id: cleanBrand,
+      subcategory_id: cleanSub,
       name_en: cleanNameEn || null,
       price: cleanPrice,
       mrp: cleanMrp,
@@ -173,9 +181,19 @@ function buildProductRow({
 function dbError(error) {
   if (error.code === "23503") return { error: "ಆಯ್ಕೆ ಮಾಡಿದ ಬ್ರಾಂಡ್ ಇನ್ನು ಇಲ್ಲ. ಪಟ್ಟಿಯನ್ನು ರಿಫ್ರೆಶ್ ಮಾಡಿ." };
   if (error.code === "42703" || error.code === "PGRST204") {
-    return { error: "ಡೇಟಾಬೇಸ್‌ನಲ್ಲಿ ಬೇಕಾದ ಕಾಲಂ ಇಲ್ಲ (brand_id ಅಥವಾ *_en). supabase/brands.sql ಮತ್ತು product-bilingual.sql ರನ್ ಮಾಡಿ." };
+    return { error: "ಡೇಟಾಬೇಸ್‌ನಲ್ಲಿ ಬೇಕಾದ ಕಾಲಂ ಇಲ್ಲ (brand_id / subcategory_id / *_en). supabase/subcategories.sql, brands.sql ಮತ್ತು product-bilingual.sql ರನ್ ಮಾಡಿ." };
   }
   return { error: error.message };
+}
+
+// ಆಯ್ಕೆ ಮಾಡಿದ ಉಪವರ್ಗ ಪ್ರಾಡಕ್ಟ್‌ನ ವರ್ಗಕ್ಕೇ ಸೇರಿದ್ದೇ? (ಉದಾ: "ಕೀಟನಾಶಕ" ಬೀಜಗಳ ಪ್ರಾಡಕ್ಟ್‌ಗೆ ಬೇಡ)
+async function checkSubcategory(supabaseAdmin, row) {
+  if (row.subcategory_id == null) return null;
+  const { data, error } = await supabaseAdmin.from("subcategories").select("category_slug").eq("id", row.subcategory_id).maybeSingle();
+  if (error) return dbError(error);
+  if (!data) return { error: "ಆಯ್ಕೆ ಮಾಡಿದ ಉಪವರ್ಗ ಇನ್ನು ಇಲ್ಲ. ಪಟ್ಟಿಯನ್ನು ರಿಫ್ರೆಶ್ ಮಾಡಿ." };
+  if (categoryOf(row)?.slug !== data.category_slug) return { error: "ಉಪವರ್ಗ ಆಯ್ಕೆ ಮಾಡಿದ ವರ್ಗಕ್ಕೆ ಸೇರಿಲ್ಲ. ವರ್ಗ ಅಥವಾ ಉಪವರ್ಗ ಬದಲಿಸಿ." };
+  return null;
 }
 
 // ಪ್ರಾಡಕ್ಟ್‌ನ ಫೋಟೋ/ವಿಡಿಯೋಗಳಲ್ಲಿ ನಮ್ಮ Storage ನಲ್ಲಿರುವ ಫೈಲ್‌ಗಳ ಪಾತ್‌ಗಳು
@@ -199,6 +217,9 @@ export async function addProduct(input) {
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) return NO_SERVICE_KEY;
 
+  const subError = await checkSubcategory(supabaseAdmin, row);
+  if (subError) return subError;
+
   const { error } = await supabaseAdmin.from("products").insert([row]);
   if (error) return dbError(error);
   return { ok: true };
@@ -216,6 +237,9 @@ export async function updateProduct(id, input) {
   const { data: existing, error: readError } = await supabaseAdmin.from("products").select("*").eq("id", id).maybeSingle();
   if (readError) return dbError(readError);
   if (!existing) return { error: "ಈ ಪ್ರಾಡಕ್ಟ್ ಸಿಗಲಿಲ್ಲ (ಬಹುಶಃ ಈಗಾಗಲೇ ಅಳಿಸಲಾಗಿದೆ)." };
+
+  const subError = await checkSubcategory(supabaseAdmin, row);
+  if (subError) return subError;
 
   const { error } = await supabaseAdmin.from("products").update(row).eq("id", id);
   if (error) return dbError(error);

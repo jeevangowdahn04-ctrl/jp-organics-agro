@@ -10,6 +10,7 @@ import StoriesPreview from "./components/stories/StoriesPreview";
 import SiteNav from "./components/SiteNav";
 import CategoryLogo from "./components/categories/CategoryLogo";
 import { BrandLogo, useBrands } from "./components/brands/useBrands";
+import { SubLogo, subName, useSubcategories } from "./components/subcategories/useSubcategories";
 import { CATEGORIES as SHOP_CATEGORIES, categoryBySlug, categoryOf, type Category, type CategorySlug } from "@/lib/categories";
 import CartButton from "./components/cart/CartButton";
 import { useCart } from "./components/cart/CartProvider";
@@ -44,6 +45,7 @@ interface Product {
   name_en?: string | null;
   category_en?: string | null;
   brand_id?: number | null;
+  subcategory_id?: number | null;
   description_en?: string | null;
 }
 
@@ -70,6 +72,9 @@ export default function Home() {
   // "ಬ್ರಾಂಡ್‌ಗಳು" ವರ್ಗದಲ್ಲಿ ಒಂದು ಬ್ರಾಂಡ್ ಆರಿಸಿದಾಗ ಅದರ id
   const [brandFilter, setBrandFilter] = useState<number | null>(null);
   const brands = useBrands();
+  // ವರ್ಗದೊಳಗಿನ ಉಪವರ್ಗ ಫಿಲ್ಟರ್ (ಉದಾ: ಬೆಳೆ ಸಂರಕ್ಷಣೆ → ಕೀಟನಾಶಕ)
+  const [subFilter, setSubFilter] = useState<number | null>(null);
+  const subcategories = useSubcategories();
   const { addItem } = useCart();
   const { requireLogin } = useCustomer();
   const { t, lang } = useLanguage();
@@ -106,9 +111,10 @@ export default function Home() {
       if (q && !searchableText(p).includes(q)) return false;
       if (brandFilter != null) return p.brand_id === brandFilter;
       if (categorySlug && categoryOf(p)?.slug !== categorySlug) return false;
+      if (subFilter != null && p.subcategory_id !== subFilter) return false;
       return true;
     });
-  }, [products, query, categorySlug, brandFilter]);
+  }, [products, query, categorySlug, brandFilter, subFilter]);
   // ಪ್ರತಿ ಬ್ರಾಂಡ್‌ನ ಉತ್ಪನ್ನ ಸಂಖ್ಯೆ
   const brandCounts = useMemo(() => {
     const counts: Record<number, number> = {};
@@ -128,17 +134,33 @@ export default function Home() {
   }, [products]);
   const catName = (c: Category) => (lang === "en" ? c.en : c.kn);
   const selectedCategory = categoryBySlug(categorySlug);
-  const activeFilter = selectedBrand ? selectedBrand.name : selectedCategory ? catName(selectedCategory) : query;
+  // ತೆರೆದಿರುವ ವರ್ಗದ ಉಪವರ್ಗಗಳು ಮತ್ತು ಪ್ರತಿಯೊಂದರ ಉತ್ಪನ್ನ ಸಂಖ್ಯೆ
+  const categorySubs = categorySlug && categorySlug !== "brands" ? (subcategories ?? []).filter((s) => s.category_slug === categorySlug) : [];
+  const subCounts = useMemo(() => {
+    const counts: Record<number, number> = {};
+    for (const p of products) if (p.subcategory_id != null) counts[p.subcategory_id] = (counts[p.subcategory_id] ?? 0) + 1;
+    return counts;
+  }, [products]);
+  const selectedSub = subFilter != null ? categorySubs.find((s) => s.id === subFilter) ?? null : null;
+  const activeFilter = selectedBrand
+    ? selectedBrand.name
+    : selectedSub
+      ? subName(selectedSub, lang)
+      : selectedCategory
+        ? catName(selectedCategory)
+        : query;
   const pickCategory = (slug: CategorySlug | null) => {
     setQuery("");
     setCategorySlug(slug);
     setBrandFilter(null);
+    setSubFilter(null);
     document.getElementById("products")?.scrollIntoView({ behavior: "smooth" });
   };
   const clearFilter = () => {
     setQuery("");
     setCategorySlug(null);
     setBrandFilter(null);
+    setSubFilter(null);
   };
 
   const addToCart = (product: Product) =>
@@ -164,6 +186,7 @@ export default function Home() {
           setQuery(e.target.value);
           setCategorySlug(null);
           setBrandFilter(null);
+          setSubFilter(null);
         }}
         onKeyDown={(e) => e.key === "Enter" && document.getElementById("products")?.scrollIntoView({ behavior: "smooth" })}
         placeholder={t("header.search")}
@@ -321,6 +344,7 @@ export default function Home() {
             onClick={() => {
               setCategorySlug(null);
               setBrandFilter(null);
+              setSubFilter(null);
             }}
             aria-pressed={!categorySlug}
             className={`flex-none rounded-full border px-4 py-1.5 text-sm font-semibold transition ${
@@ -340,6 +364,7 @@ export default function Home() {
                   setQuery("");
                   setCategorySlug(active ? null : cat.slug);
                   setBrandFilter(null);
+                  setSubFilter(null);
                 }}
                 aria-pressed={active}
                 className={`flex-none flex items-center gap-2 rounded-full border pl-1 pr-3 py-1 text-sm font-semibold whitespace-nowrap transition ${
@@ -353,6 +378,45 @@ export default function Home() {
             );
           })}
         </div>
+
+        {/* ಉಪವರ್ಗಗಳು: ಆಯ್ಕೆ ಮಾಡಿದ ವರ್ಗದೊಳಗೆ (ಮೊಬೈಲ್‌ನಲ್ಲಿ ಅಡ್ಡ ಸ್ಕ್ರೋಲ್) */}
+        {categorySubs.length > 0 && selectedCategory && (
+          <div
+            role="group"
+            aria-label={catName(selectedCategory)}
+            className="-mx-4 px-4 -mt-3 mb-6 flex gap-2 overflow-x-auto pb-1 md:flex-wrap md:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            <button
+              type="button"
+              onClick={() => setSubFilter(null)}
+              aria-pressed={subFilter == null}
+              className={`flex-none rounded-full border px-3 py-1 text-xs font-semibold whitespace-nowrap transition ${
+                subFilter == null ? "bg-emerald-50 border-emerald-600 text-emerald-800" : "bg-white border-slate-200 text-slate-600 hover:border-emerald-500"
+              }`}
+            >
+              {t("cat.all")} {catName(selectedCategory)}
+            </button>
+            {categorySubs.map((s) => {
+              const active = subFilter === s.id;
+              const n = subCounts[s.id] ?? 0;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => setSubFilter(active ? null : s.id)}
+                  aria-pressed={active}
+                  className={`flex-none flex items-center gap-1.5 rounded-full border pl-1 pr-3 py-1 text-xs font-semibold whitespace-nowrap transition ${
+                    active ? "bg-emerald-50 border-emerald-600 text-emerald-800" : "bg-white border-slate-200 text-slate-600 hover:border-emerald-500"
+                  }`}
+                >
+                  <SubLogo sub={s} lang={lang} className="w-6 h-6 text-[10px]" />
+                  {subName(s, lang)}
+                  {n > 0 && <span className="text-[10px] font-bold text-slate-400">{n}</span>}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* ಬ್ರಾಂಡ್‌ಗಳು: ಲೋಗೋ ಸಹಿತ ಎಲ್ಲಾ ಬ್ರಾಂಡ್‌ಗಳು; ಒಂದನ್ನು ಆರಿಸಿದರೆ ಅದರ ಉತ್ಪನ್ನಗಳು ಮಾತ್ರ */}
         {showBrandGrid && (
@@ -405,10 +469,10 @@ export default function Home() {
         {isAdmin && selectedCategory && selectedCategory.slug !== "brands" && brandFilter == null && (
           <button
             type="button"
-            onClick={() => adminPanel.openAddForCategory(selectedCategory.slug)}
+            onClick={() => adminPanel.openAddForCategory(selectedCategory.slug, subFilter)}
             className="-mt-2 mb-6 w-full sm:w-auto flex items-center justify-center gap-2 bg-amber-50 border border-amber-300 text-amber-900 hover:bg-amber-100 font-semibold text-sm px-4 py-2.5 rounded-xl"
           >
-            <Plus className="w-4 h-4" /> ಈ ವರ್ಗಕ್ಕೆ ಹೊಸ ಪ್ರಾಡಕ್ಟ್ ಸೇರಿಸಿ ({catName(selectedCategory)})
+            <Plus className="w-4 h-4" /> ಈ ವರ್ಗಕ್ಕೆ ಹೊಸ ಪ್ರಾಡಕ್ಟ್ ಸೇರಿಸಿ ({selectedSub ? `${catName(selectedCategory)} › ${subName(selectedSub, lang)}` : catName(selectedCategory)})
           </button>
         )}
         {/* ಅಡ್ಮಿನ್‌ಗೆ ಮಾತ್ರ: ತೆರೆದಿರುವ ಬ್ರಾಂಡ್‌ಗೆ ನೇರವಾಗಿ ಹೊಸ ಪ್ರಾಡಕ್ಟ್ */}
@@ -489,7 +553,8 @@ export default function Home() {
                     <span className="text-[11px] font-semibold text-emerald-600 uppercase">
                       {(() => {
                         const c = categoryOf(item);
-                        const label = c ? catName(c) : text.category || t("products.defaultCategory");
+                        const sub = item.subcategory_id != null ? subcategories?.find((x) => x.id === item.subcategory_id) : null;
+                        const label = sub ? subName(sub, lang) : c ? catName(c) : text.category || t("products.defaultCategory");
                         const b = item.brand_id != null ? brands?.find((x) => x.id === item.brand_id) : null;
                         return b ? `${label} · ${b.name}` : label;
                       })()}

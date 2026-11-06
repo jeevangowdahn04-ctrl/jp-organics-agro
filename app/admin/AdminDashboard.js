@@ -16,6 +16,8 @@ import CategoryLogosManager from "../components/categories/CategoryLogosManager"
 import { CATEGORIES, categoryOf } from "@/lib/categories";
 import { BadgeCheck, LayoutGrid, LogOut, Package, Pencil, PlusCircle, Search, Settings, Trash2 } from "lucide-react";
 import BrandsManager from "../components/brands/BrandsManager";
+import SubcategoriesManager from "../components/subcategories/SubcategoriesManager";
+import { refreshSubcategories, useSubcategories } from "../components/subcategories/useSubcategories";
 import { refreshBrands, useBrands } from "../components/brands/useBrands";
 import { addProduct, createUploadUrl, deleteProduct, discardUploads, logout, setProductStock, updateProduct } from "./actions";
 
@@ -52,15 +54,17 @@ const releasePreview = (img) => img.file && URL.revokeObjectURL(img.preview);
 // embedded: ಮುಖಪುಟದ ಇನ್‌ಲೈನ್ ಅಡ್ಮಿನ್ ಪ್ಯಾನೆಲ್ ಒಳಗೆ (ಸ್ವಂತ ಹೆಡರ್/ಲಾಗ್‌ಔಟ್ ಇಲ್ಲ)
 // initialEditId: ತೆರೆದ ತಕ್ಷಣ ಈ ಪ್ರಾಡಕ್ಟ್ ಎಡಿಟ್ ಮೋಡ್‌ನಲ್ಲಿ; onProductsChanged: ಸೇರಿಸು/ಎಡಿಟ್/ಅಳಿಸು ನಂತರ ತಿಳಿಸುವುದು
 // initialTab: "add" (ಹೊಸ ಪ್ರಾಡಕ್ಟ್ / ಎಡಿಟ್ ಫಾರ್ಮ್) | "products" (ಪಟ್ಟಿ: ಎಡಿಟ್, ಸ್ಟಾಕ್, ಅಳಿಸಿ) | "categories" (ವರ್ಗಗಳ ಲೋಗೋ) | "brands" (ಬ್ರಾಂಡ್‌ಗಳು)
-/** @param {{ embedded?: boolean, initialEditId?: string | number | null, initialTab?: "add" | "products" | "categories" | "brands", initialBrandId?: number | null, initialCategory?: string | null, onProductsChanged?: () => void }} [props] */
+/** @param {{ embedded?: boolean, initialEditId?: string | number | null, initialTab?: "add" | "products" | "categories" | "brands", initialBrandId?: number | null, initialCategory?: string | null, initialSubcategory?: number | null, onProductsChanged?: () => void }} [props] */
 // initialBrandId: "ಈ ಬ್ರಾಂಡ್‌ಗೆ ಹೊಸ ಪ್ರಾಡಕ್ಟ್" ಬಟನ್‌ನಿಂದ ಬಂದಾಗ ಫಾರ್ಮ್‌ನಲ್ಲಿ ಆ ಬ್ರಾಂಡ್ ಮೊದಲೇ ಆಯ್ಕೆ
-export default function AdminDashboard({ embedded = false, initialEditId = null, initialTab = "add", initialBrandId = null, initialCategory = null, onProductsChanged } = {}) {
+export default function AdminDashboard({ embedded = false, initialEditId = null, initialTab = "add", initialBrandId = null, initialCategory = null, initialSubcategory = null, onProductsChanged } = {}) {
   // "+ ಈ ವರ್ಗಕ್ಕೆ ಹೊಸ ಪ್ರಾಡಕ್ಟ್" ಬಟನ್‌ನಿಂದ ಬಂದಾಗ ಆ ವರ್ಗ ಮೊದಲೇ ಆಯ್ಕೆ
   const startCategory = CATEGORIES.find((c) => c.slug === initialCategory) ?? null;
   const [tab, setTab] = useState(initialEditId != null ? "add" : initialTab);
   const [listQuery, setListQuery] = useState("");
   const [stockBusyId, setStockBusyId] = useState(null);
   const [brandId, setBrandId] = useState(initialBrandId != null ? String(initialBrandId) : "");
+  const [subcategoryId, setSubcategoryId] = useState(initialSubcategory != null ? String(initialSubcategory) : "");
+  const subcategories = useSubcategories();
   const brands = useBrands();
   const [products, setProducts] = useState([]);
   const [editingId, setEditingId] = useState(null);
@@ -166,6 +170,7 @@ export default function AdminDashboard({ embedded = false, initialEditId = null,
     setNameEn("");
     setCategoryEn("");
     setBrandId("");
+    setSubcategoryId("");
     setHighlightsEn("");
     setDescriptionEn("");
     setContentLang("kn");
@@ -192,6 +197,7 @@ export default function AdminDashboard({ embedded = false, initialEditId = null,
     setNameEn(p.name_en ?? "");
     setCategoryEn(p.category_en ?? "");
     setBrandId(p.brand_id != null ? String(p.brand_id) : "");
+    setSubcategoryId(p.subcategory_id != null ? String(p.subcategory_id) : "");
     setHighlightsEn(highlightLines(p.highlights_en).join("\n"));
     setDescriptionEn(p.description_en ?? "");
     setContentLang("kn");
@@ -214,6 +220,7 @@ export default function AdminDashboard({ embedded = false, initialEditId = null,
   // ಬ್ರಾಂಡ್ ಡ್ರಾಪ್‌ಡೌನ್‌ನಲ್ಲಿ ಎಲ್ಲಾ (ಇತ್ತೀಚೆಗೆ ಸೇರಿಸಿದ) ಬ್ರಾಂಡ್‌ಗಳು ಕಾಣಿಸಲು, ತೆರೆದಾಗ ಪಟ್ಟಿಯನ್ನು ಮತ್ತೆ ತರುವುದು
   useEffect(() => {
     refreshBrands();
+    refreshSubcategories();
   }, []);
 
   // Supabase ನಿಂದ ಪ್ರಾಡಕ್ಟ್‌ಗಳ ಪಟ್ಟಿ ಪಡೆಯುವುದು
@@ -305,7 +312,7 @@ export default function AdminDashboard({ embedded = false, initialEditId = null,
 
       setStatus("ಪ್ರಾಡಕ್ಟ್ ಸೇವ್ ಆಗುತ್ತಿದೆ...");
       const payload = {
-        name, nameEn, price, mrp, category, categoryEn, brandId, weight, inStock,
+        name, nameEn, price, mrp, category, categoryEn, brandId, subcategoryId, weight, inStock,
         highlights, highlightsEn, description, descriptionEn, imageUrls, videoUrl,
       };
       const { error } = editingId ? await updateProduct(editingId, payload) : await addProduct(payload);
@@ -328,7 +335,7 @@ export default function AdminDashboard({ embedded = false, initialEditId = null,
   const tabs = [
     { id: "add", icon: PlusCircle, label: editingId ? `ಎಡಿಟ್ #${editingId}` : "ಹೊಸ ಪ್ರಾಡಕ್ಟ್", sub: editingId ? "Edit" : "Add Product" },
     { id: "products", icon: Package, label: `ಪ್ರಾಡಕ್ಟ್‌ಗಳು (${products.length})`, sub: "Edit · Stock · Delete" },
-    { id: "categories", icon: LayoutGrid, label: "ವರ್ಗಗಳ ಲೋಗೋ", sub: "Category logos" },
+    { id: "categories", icon: LayoutGrid, label: "ವರ್ಗಗಳು", sub: "Logos · Subcategories" },
     { id: "brands", icon: BadgeCheck, label: `ಬ್ರಾಂಡ್‌ಗಳು (${brands?.length ?? 0})`, sub: "Brands" },
   ];
   const brandName = (id) => (brands ?? []).find((b) => b.id === id)?.name;
@@ -456,6 +463,9 @@ export default function AdminDashboard({ embedded = false, initialEditId = null,
                         setCategory("");
                         setCategoryEn("");
                       }
+                      // ವರ್ಗ ಬದಲಾದರೆ ಹಳೆಯ ವರ್ಗದ ಉಪವರ್ಗ ಬೇಡ
+                      const keep = (subcategories ?? []).find((s) => String(s.id) === subcategoryId);
+                      if (!keep || keep.category_slug !== e.target.value) setSubcategoryId("");
                     }}
                     style={inputStyle}
                   >
@@ -471,6 +481,32 @@ export default function AdminDashboard({ embedded = false, initialEditId = null,
               })()}
               <p style={hintStyle}>ಮುಖಪುಟದ 6 ವರ್ಗಗಳಲ್ಲಿ ಒಂದನ್ನು ಆರಿಸಿ; ಕನ್ನಡ ಮತ್ತು English ಹೆಸರು ಎರಡೂ ತಾನಾಗಿ ಸೇರುತ್ತವೆ.</p>
             </div>
+            {(() => {
+              const slugNow = categoryOf({ category, category_en: categoryEn })?.slug;
+              if (!slugNow || slugNow === "brands") return null;
+              const options = (subcategories ?? []).filter((s) => s.category_slug === slugNow);
+              return (
+                <div style={{ marginBottom: "12px" }}>
+                  <label htmlFor="productSubcategory" style={labelStyle}>ಉಪವರ್ಗ / Subcategory:</label>
+                  <select id="productSubcategory" value={subcategoryId} onChange={(e) => setSubcategoryId(e.target.value)} style={inputStyle}>
+                    <option value="">-- ಉಪವರ್ಗ ಇಲ್ಲ / No subcategory --</option>
+                    {options.map((s) => (
+                      <option key={s.id} value={String(s.id)}>
+                        {s.name}
+                        {s.name_en ? ` / ${s.name_en}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <p style={hintStyle}>
+                    {options.length === 0 ? "ಈ ವರ್ಗಕ್ಕೆ ಇನ್ನೂ ಉಪವರ್ಗ ಇಲ್ಲ. " : "ಪಟ್ಟಿಯಲ್ಲಿ ಇಲ್ಲವೇ? "}
+                    <button type="button" onClick={() => setTab("categories")} className="text-emerald-700 font-semibold underline">
+                      ಉಪವರ್ಗ ಸೇರಿಸಿ
+                    </button>{" "}
+                    (ಈ ಫಾರ್ಮ್‌ನಲ್ಲಿ ಹಾಕಿದ್ದು ಉಳಿಯುತ್ತದೆ)
+                  </p>
+                </div>
+              );
+            })()}
             <div style={{ marginBottom: "12px" }}>
               <label htmlFor="productBrand" style={labelStyle}>ಬ್ರಾಂಡ್ / Brand:</label>
               <select id="productBrand" value={brandId} onChange={(e) => setBrandId(e.target.value)} style={inputStyle}>
@@ -695,7 +731,26 @@ export default function AdminDashboard({ embedded = false, initialEditId = null,
       </form>
       )}
 
-      {tab === "categories" && <CategoryLogosManager />}
+      {tab === "categories" && (
+        <div className="space-y-6">
+          <SubcategoriesManager
+            products={products}
+            onAddProduct={(slug, subId) => {
+              resetForm();
+              const c = CATEGORIES.find((x) => x.slug === slug);
+              if (c) {
+                setCategory(c.kn);
+                setCategoryEn(c.en);
+              }
+              if (subId) setSubcategoryId(String(subId));
+              setTab("add");
+            }}
+            onEditProduct={startEdit}
+            onOpenBrands={() => setTab("brands")}
+          />
+          <CategoryLogosManager />
+        </div>
+      )}
 
       {tab === "brands" && (
         <BrandsManager
@@ -777,6 +832,9 @@ export default function AdminDashboard({ embedded = false, initialEditId = null,
                           )}
                           <span className={stock ? "text-emerald-700 font-semibold" : "text-red-600 font-semibold"}>{stock ? "In Stock" : "Out of Stock"}</span>
                           <span className={cat ? "text-slate-500" : "text-amber-700"}>{cat ? `${cat.kn} / ${cat.en}` : "ವರ್ಗ ಇಲ್ಲ"}</span>
+                          {(subcategories ?? []).find((s) => s.id === p.subcategory_id) && (
+                            <span className="text-emerald-700 font-semibold">› {(subcategories ?? []).find((s) => s.id === p.subcategory_id).name}</span>
+                          )}
                           {brandName(p.brand_id) && <span className="text-slate-700 font-semibold">· {brandName(p.brand_id)}</span>}
                         </p>
                         <p className="text-[11px] text-emerald-700 mt-0.5">

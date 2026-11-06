@@ -19,6 +19,7 @@ import ProfileButton from "../../components/customer/ProfileButton";
 import LanguageSwitcher from "../../components/i18n/LanguageSwitcher";
 import { useLanguage } from "../../components/i18n/LanguageProvider";
 import { useBrands } from "../../components/brands/useBrands";
+import { subName, useSubcategories } from "../../components/subcategories/useSubcategories";
 
 interface Product {
   id: number | string;
@@ -35,6 +36,7 @@ interface Product {
   name_en?: string | null;
   category_en?: string | null;
   brand_id?: number | null;
+  subcategory_id?: number | null;
   description_en?: string | null;
   highlights_en?: unknown;
   image_url?: string | null;
@@ -78,6 +80,7 @@ const discountOf = (p: Product) => discountPercent(p.price, p.mrp);
 
 export default function ProductDetail({ id }: { id: string }) {
   const brands = useBrands();
+  const subcategories = useSubcategories();
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [quantity, setQuantity] = useState(1);
   const { addItem } = useCart();
@@ -313,7 +316,18 @@ export default function ProductDetail({ id }: { id: string }) {
                 {[
                   [t("detail.brand"), (product.brand_id != null && brands?.find((b) => b.id === product.brand_id)?.name) || BRAND],
                   [t("detail.row.name"), text.name],
-                  [t("detail.row.category"), text.category || t("products.defaultCategory")],
+                  [
+                    t("detail.row.category"),
+                    [
+                      text.category || t("products.defaultCategory"),
+                      (() => {
+                        const s = product.subcategory_id != null ? subcategories?.find((x) => x.id === product.subcategory_id) : null;
+                        return s ? subName(s, lang) : null;
+                      })(),
+                    ]
+                      .filter(Boolean)
+                      .join(" › "),
+                  ],
                   [t("detail.row.packing"), product.weight],
                   [t("detail.row.type"), product.tag || "Organic"],
                   [t("detail.row.seller"), t("detail.sellerValue")],

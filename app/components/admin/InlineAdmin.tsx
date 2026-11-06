@@ -62,7 +62,15 @@ export function useAdminMode() {
 export type AdminTab = "add" | "products" | "categories" | "brands";
 type PanelState =
   | { open: false }
-  | { open: true; editId: number | string | null; tab: AdminTab; brandId?: number | null; categorySlug?: string | null; key: number };
+  | {
+      open: true;
+      editId: number | string | null;
+      tab: AdminTab;
+      brandId?: number | null;
+      categorySlug?: string | null;
+      subcategoryId?: number | null;
+      key: number;
+    };
 
 export function useAdminPanel() {
   const [panel, setPanel] = useState<PanelState>({ open: false });
@@ -74,7 +82,8 @@ export function useAdminPanel() {
     // ಹೊಸ ಪ್ರಾಡಕ್ಟ್ ಫಾರ್ಮ್, ಈ ಬ್ರಾಂಡ್ ಮೊದಲೇ ಆಯ್ಕೆಯಾಗಿ
     openAddForBrand: (brandId: number) => setPanel({ open: true, editId: null, tab: "add", brandId, key: Date.now() }),
     // ಹೊಸ ಪ್ರಾಡಕ್ಟ್ ಫಾರ್ಮ್, ಈ ವರ್ಗ (ಉದಾ: ಬೀಜಗಳು) ಮೊದಲೇ ಆಯ್ಕೆಯಾಗಿ
-    openAddForCategory: (categorySlug: string) => setPanel({ open: true, editId: null, tab: "add", categorySlug, key: Date.now() }),
+    openAddForCategory: (categorySlug: string, subcategoryId?: number | null) =>
+      setPanel({ open: true, editId: null, tab: "add", categorySlug, subcategoryId: subcategoryId ?? null, key: Date.now() }),
     close: () => setPanel({ open: false }),
   };
 }
@@ -85,7 +94,7 @@ export function AdminBar({ onOpen, onLoggedOut }: { onOpen: (tab: AdminTab) => v
   const actions: { tab: AdminTab; icon: React.ComponentType<{ className?: string }>; label: string; primary?: boolean }[] = [
     { tab: "add", icon: Plus, label: "ಹೊಸ ಪ್ರಾಡಕ್ಟ್", primary: true },
     { tab: "products", icon: Package, label: "ಪ್ರಾಡಕ್ಟ್‌ಗಳು" },
-    { tab: "categories", icon: LayoutGrid, label: "ವರ್ಗಗಳ ಲೋಗೋ" },
+    { tab: "categories", icon: LayoutGrid, label: "ವರ್ಗಗಳು" },
     { tab: "brands", icon: BadgeCheck, label: "ಬ್ರಾಂಡ್‌ಗಳು" },
   ];
   return (
@@ -206,6 +215,7 @@ export function AdminPanel({
   tab = "add",
   brandId = null,
   categorySlug = null,
+  subcategoryId = null,
   onClose,
   onProductsChanged,
 }: {
@@ -213,6 +223,7 @@ export function AdminPanel({
   tab?: AdminTab;
   brandId?: number | null;
   categorySlug?: string | null;
+  subcategoryId?: number | null;
   onClose: () => void;
   onProductsChanged: () => void;
 }) {
@@ -241,7 +252,7 @@ export function AdminPanel({
           </div>
         </div>
       </div>
-      <AdminDashboard embedded initialEditId={editId} initialTab={tab} initialBrandId={brandId} initialCategory={categorySlug} onProductsChanged={onProductsChanged} />
+      <AdminDashboard embedded initialEditId={editId} initialTab={tab} initialBrandId={brandId} initialCategory={categorySlug} initialSubcategory={subcategoryId} onProductsChanged={onProductsChanged} />
     </div>
   );
 }
