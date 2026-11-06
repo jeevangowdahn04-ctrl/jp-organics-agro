@@ -14,7 +14,8 @@ const kn = {
   "banner.call": "ಕೃಷಿ ಸಲಹೆಗೆ ಕರೆ ಮಾಡಿ: 7795198610",
   "header.tagline": "And Agro Center",
   "header.search": "ಉತ್ಪನ್ನಗಳನ್ನು ಹುಡುಕಿ...",
-  "header.helpline": "ಕೃಷಿ ಸಹಾಯವಾಣಿ",
+  "call.label": "ಕರೆ ಮಾಡಿ",
+  "call.aria": "ಸಹಾಯವಾಣಿ {n} ಗೆ ಕರೆ ಮಾಡಿ",
   "header.allProducts": "ಎಲ್ಲಾ ಉತ್ಪನ್ನಗಳು",
   "lang.label": "ಭಾಷೆ",
 
@@ -363,7 +364,8 @@ const en: Record<TranslationKey, string> = {
   "banner.call": "Call for farming advice: 7795198610",
   "header.tagline": "And Agro Center",
   "header.search": "Search products...",
-  "header.helpline": "Farm Helpline",
+  "call.label": "Call us",
+  "call.aria": "Call helpline {n}",
   "header.allProducts": "All products",
   "lang.label": "Language",
 

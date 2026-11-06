@@ -209,14 +209,6 @@ export default function Home() {
 
           <div className="flex items-center gap-2 sm:gap-3">
             <LanguageSwitcher />
-            <a
-              href="tel:7795198610"
-              aria-label={t("header.helpline")}
-              className="hidden sm:flex items-center gap-2 bg-emerald-50 text-emerald-700 px-3 py-2 rounded-lg text-sm font-semibold hover:bg-emerald-100 transition"
-            >
-              <Phone className="w-4 h-4" />
-              <span className="hidden lg:inline">{t("header.helpline")}</span>
-            </a>
             <ProfileButton />
             <CartButton />
           </div>

@@ -7,6 +7,7 @@ import { CustomerProvider } from "./components/customer/CustomerProvider";
 import { LanguageProvider } from "./components/i18n/LanguageProvider";
 import BottomNav from "./components/BottomNav";
 import SecretAdminLogin from "./components/admin/SecretAdminLogin";
+import FloatingCall from "./components/FloatingCall";
 import { BRAND_GREEN, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/site";
 
 const geistSans = Geist({
@@ -54,6 +55,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               <Suspense fallback={null}>
                 <BottomNav />
                 <SecretAdminLogin />
+                <FloatingCall />
               </Suspense>
             </CartProvider>
           </CustomerProvider>
