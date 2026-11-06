@@ -25,6 +25,8 @@ import {
 } from "@/lib/media";
 import { highlightLines } from "@/lib/pricing";
 
+const ADMIN_HINT_COOKIE = "jp_admin_hint";
+
 // ಅಡ್ಮಿನ್ ಕುಕೀ ಇಡೀ ಸೈಟ್‌ಗೆ (path "/"), ಮುಖಪುಟದ ಇನ್‌ಲೈನ್ ಅಡ್ಮಿನ್ ಮೋಡ್ ಕೂಡ ಇದನ್ನು ಪರಿಶೀಲಿಸುತ್ತದೆ
 async function startAdminSession() {
   const jar = await cookies();
@@ -36,12 +38,22 @@ async function startAdminSession() {
     path: "/",
     maxAge: 60 * 60 * 8, // 8 ಗಂಟೆ
   });
+  // ಬ್ರೌಸರ್‌ಗೆ ಕೇವಲ "ಅಡ್ಮಿನ್ ಇರಬಹುದು" ಎಂಬ ಸೂಚನೆ (ರಹಸ್ಯವಿಲ್ಲ): ಇದಿಲ್ಲದ ಸಾಮಾನ್ಯ ಗ್ರಾಹಕರು adminStatus ಸರ್ವರ್ ಕರೆ ಮಾಡುವುದೇ ಇಲ್ಲ.
+  // ನಿಜವಾದ ಪರಿಶೀಲನೆ ಯಾವಾಗಲೂ ಮೇಲಿನ httpOnly ಕುಕೀಯಿಂದ ಸರ್ವರ್‌ನಲ್ಲೇ.
+  jar.set(ADMIN_HINT_COOKIE, "1", {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 8,
+  });
 }
 
 async function endAdminSession() {
   const jar = await cookies();
   jar.delete({ name: ADMIN_COOKIE, path: "/" });
   jar.delete({ name: ADMIN_COOKIE, path: "/admin" });
+  jar.delete({ name: ADMIN_HINT_COOKIE, path: "/" });
 }
 
 const lockedText = (m) => `ತುಂಬಾ ಬಾರಿ ತಪ್ಪು ಪ್ರಯತ್ನ. ಸುರಕ್ಷತೆಗಾಗಿ ${m} ನಿಮಿಷ ತಡೆಹಿಡಿಯಲಾಗಿದೆ, ನಂತರ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.`;

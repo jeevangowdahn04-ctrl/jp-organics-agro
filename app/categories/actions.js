@@ -1,5 +1,6 @@
 "use server";
 
+import { updateTag } from "next/cache";
 import { isAdmin } from "@/lib/adminAuth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { IMAGE_TYPES, MEDIA_BUCKET, storagePathFromUrl } from "@/lib/media";
@@ -68,6 +69,8 @@ export async function setCategoryImage(slug, url) {
     .from("admin_settings")
     .upsert({ key: KEY, value: JSON.stringify(images), updated_at: new Date().toISOString() });
   if (error) return { error: "server" };
+  // /api/category-images ನ ಕ್ಯಾಶ್ ತಕ್ಷಣ ನವೀಕರಣ
+  updateTag("category-images");
 
   // ನಾವೇ ಅಪ್‌ಲೋಡ್ ಮಾಡಿದ ಹಳೆಯ ಲೋಗೋ ಫೈಲ್ ಅಳಿಸುವುದು
   const oldPath = storagePathFromUrl(old);

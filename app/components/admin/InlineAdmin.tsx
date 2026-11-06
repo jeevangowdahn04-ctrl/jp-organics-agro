@@ -29,6 +29,12 @@ export function setAdminMode(value: boolean) {
 let lastCheck = 0;
 function checkAdmin() {
   if (checking) return;
+  // ಅಡ್ಮಿನ್ ಸೂಚನಾ ಕುಕೀ ಇಲ್ಲದಿದ್ದರೆ (ಸಾಮಾನ್ಯ ಗ್ರಾಹಕರು) ಸರ್ವರ್ ಕರೆ ಬೇಡ: ಪುಟ ವೇಗ + ಸರ್ವರ್ ಉಳಿತಾಯ
+  if (!document.cookie.split("; ").some((c) => c.startsWith("jp_admin_hint="))) {
+    lastCheck = Date.now();
+    setAdminMode(false);
+    return;
+  }
   checking = true;
   lastCheck = Date.now();
   adminStatus()

@@ -2,7 +2,6 @@
 
 import React, { useSyncExternalStore } from "react";
 import { BadgeCheck, Leaf, ShieldCheck, Sprout, TrendingUp, Wrench } from "lucide-react";
-import { getCategoryImages } from "@/app/categories/actions";
 import type { CategoryImages, CategorySlug } from "@/lib/categories";
 
 // ವರ್ಗಗಳ ಲೋಗೋಗಳು: ಎಲ್ಲಾ ಕಾಂಪೊನೆಂಟ್‌ಗಳಿಗೆ ಒಂದೇ ಪ್ರತಿ, ಸರ್ವರ್‌ನಿಂದ ಒಮ್ಮೆ ಮಾತ್ರ ತರುವುದು.
@@ -22,7 +21,9 @@ function subscribe(listener: () => void) {
   listeners.add(listener);
   if (!loaded && !loading) {
     loading = true;
-    getCategoryImages()
+    // ಕ್ಯಾಶ್ ಮಾಡಿದ ಸಾರ್ವಜನಿಕ ವಿಳಾಸ (CDN): ಪ್ರತಿ ಭೇಟಿಗೂ ಸರ್ವರ್ ಕರೆ ಬೇಡ
+    fetch("/api/category-images")
+      .then((r) => (r.ok ? r.json() : {}))
       .then((res) => setCategoryImagesCache((res as CategoryImages) ?? {}))
       .catch(() => {})
       .finally(() => {

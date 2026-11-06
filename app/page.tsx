@@ -50,6 +50,14 @@ interface Product {
 }
 
 
+// ಪುಟದ JS ಓಡಲು ಶುರುವಾದ ತಕ್ಷಣ ಪ್ರಾಡಕ್ಟ್ ವಿನಂತಿ ಆರಂಭ (hydration ಮುಗಿಯುವವರೆಗೆ ಕಾಯದೆ); ಮೊದಲ ಬಾರಿ ಮಾತ್ರ ಬಳಕೆ
+let earlyProducts: Promise<Product[] | null> | null = null;
+function firstProducts() {
+  const p = earlyProducts ?? loadProducts();
+  earlyProducts = null;
+  return p;
+}
+
 async function loadProducts(): Promise<Product[] | null> {
   try {
     const { data, error } = await supabase.from("products").select("*").order("id", { ascending: false });
@@ -63,6 +71,7 @@ async function loadProducts(): Promise<Product[] | null> {
     return null;
   }
 }
+if (typeof window !== "undefined") earlyProducts = loadProducts();
 
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -85,7 +94,7 @@ export default function Home() {
   // Supabase ನಿಂದ ಪ್ರಾಡಕ್ಟ್‌ಗಳನ್ನು ತರುವುದು
   useEffect(() => {
     let active = true;
-    loadProducts().then((data) => {
+    firstProducts().then((data) => {
       if (!active) return;
       if (data) setProducts(data);
       setLoading(false);
