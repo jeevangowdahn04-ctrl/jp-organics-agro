@@ -12,6 +12,7 @@ import {
   sessionToken,
 } from "@/lib/adminAuth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { clearFailures, lockedMinutes, recordFailure } from "@/lib/loginGuard";
 import {
   IMAGE_TYPES,
   MAX_IMAGES,
@@ -43,21 +44,36 @@ async function endAdminSession() {
   jar.delete({ name: ADMIN_COOKIE, path: "/admin" });
 }
 
-export async function login(prevState, formData) {
-  if (!(await checkPassword(formData.get("password")))) {
-    return { error: "ತಪ್ಪು ಪಾಸ್‌ವರ್ಡ್. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ." };
+const lockedText = (m) => `ತುಂಬಾ ಬಾರಿ ತಪ್ಪು ಪ್ರಯತ್ನ. ಸುರಕ್ಷತೆಗಾಗಿ ${m} ನಿಮಿಷ ತಡೆಹಿಡಿಯಲಾಗಿದೆ, ನಂತರ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.`;
+
+// ಪಾಸ್‌ವರ್ಡ್ ಪರಿಶೀಲನೆ + ಊಹೆ ತಡೆ (5 ತಪ್ಪು ಪ್ರಯತ್ನ → 15 ನಿಮಿಷ ಲಾಕ್; ಲಾಕ್ ಇರುವಾಗ ಸರಿಯಾದ ಪಾಸ್‌ವರ್ಡ್ ಕೂಡ ಬೇಡ)
+// ಫಲಿತಾಂಶ: { ok } | { locked: ನಿಮಿಷ } | { wrong: true, remaining }
+async function guardedPasswordCheck(password) {
+  const locked = await lockedMinutes("login");
+  if (locked) return { locked };
+  // ಊಹಿಸಿ ಪ್ರಯತ್ನಿಸುವುದನ್ನು ನಿಧಾನಗೊಳಿಸಲು ಸಣ್ಣ ವಿರಾಮ
+  await new Promise((resolve) => setTimeout(resolve, 600));
+  if (await checkPassword(password)) {
+    await clearFailures("login");
+    return { ok: true };
   }
+  const result = await recordFailure("login");
+  return result.lockedMinutes ? { locked: result.lockedMinutes } : { wrong: true, remaining: result.remaining };
+}
+
+export async function login(prevState, formData) {
+  const check = await guardedPasswordCheck(formData.get("password"));
+  if (check.locked) return { error: lockedText(check.locked) };
+  if (!check.ok) return { error: `ತಪ್ಪು ಪಾಸ್‌ವರ್ಡ್. ಇನ್ನು ${check.remaining} ಪ್ರಯತ್ನ ಬಾಕಿ.` };
   await startAdminSession();
   redirect("/admin");
 }
 
 // ಮುಖಪುಟ/ಪ್ರೊಫೈಲ್‌ನಿಂದ ಅಡ್ಮಿನ್ ಲಾಗಿನ್ (redirect ಇಲ್ಲ, ಫಲಿತಾಂಶ ಮಾತ್ರ)
 export async function adminLoginInline(prevState, formData) {
-  // ಊಹಿಸಿ ಪ್ರಯತ್ನಿಸುವುದನ್ನು ನಿಧಾನಗೊಳಿಸಲು ಸಣ್ಣ ವಿರಾಮ
-  await new Promise((resolve) => setTimeout(resolve, 600));
-  if (!(await checkPassword(formData.get("password")))) {
-    return { error: "wrong" };
-  }
+  const check = await guardedPasswordCheck(formData.get("password"));
+  if (check.locked) return { error: "locked", minutes: check.locked };
+  if (!check.ok) return { error: "wrong", remaining: check.remaining };
   await startAdminSession();
   return { ok: true };
 }
@@ -85,9 +101,15 @@ export async function resetPassword(prevState, formData) {
   if (!process.env.RECOVERY_PIN) {
     return { error: "ಸರ್ವರ್‌ನಲ್ಲಿ RECOVERY_PIN ಸೆಟ್ ಆಗಿಲ್ಲ." };
   }
+  // Recovery PIN ಊಹೆ ತಡೆ: 5 ತಪ್ಪು ಪ್ರಯತ್ನ → 1 ಗಂಟೆ ಲಾಕ್
+  const pinLocked = await lockedMinutes("pin");
+  if (pinLocked) return { error: lockedText(pinLocked) };
   if (!checkRecoveryPin(formData.get("pin"))) {
-    return { error: "ತಪ್ಪು Recovery PIN." };
+    const result = await recordFailure("pin");
+    if (result.lockedMinutes) return { error: lockedText(result.lockedMinutes) };
+    return { error: `ತಪ್ಪು Recovery PIN. ಇನ್ನು ${result.remaining} ಪ್ರಯತ್ನ ಬಾಕಿ.` };
   }
+  await clearFailures("pin");
 
   const newPassword = formData.get("newPassword");
   if (typeof newPassword !== "string" || newPassword.length < 8) {

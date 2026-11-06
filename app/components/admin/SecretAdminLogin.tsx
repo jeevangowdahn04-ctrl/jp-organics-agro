@@ -94,7 +94,7 @@ function AdminDialog({
 }) {
   const [visible, setVisible] = useState(false);
   const [exiting, setExiting] = useState(false);
-  const [state, formAction, pending] = useActionState(async (prev: { error?: string; ok?: boolean } | null, formData: FormData) => {
+  const [state, formAction, pending] = useActionState(async (prev: { error?: string; ok?: boolean; minutes?: number; remaining?: number } | null, formData: FormData) => {
     const res = await adminLoginInline(prev, formData);
     if (res?.ok) onLoggedIn();
     return res;
@@ -170,7 +170,11 @@ function AdminDialog({
             </div>
             {state?.error && (
               <p role="alert" className="text-sm text-red-600">
-                {t("admin.wrong")}
+                {state.error === "locked"
+                  ? t("admin.locked", { m: state.minutes ?? 15 })
+                  : state.remaining != null
+                    ? t("admin.wrongLeft", { n: state.remaining })
+                    : t("admin.wrong")}
               </p>
             )}
             <button
