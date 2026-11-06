@@ -3,7 +3,13 @@
 import React, { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { BadgeCheck, ExternalLink, LayoutGrid, LogOut, Package, Pencil, Plus, Settings, Trash2, X } from "lucide-react";
-import AdminDashboard from "../../admin/AdminDashboard";
+import dynamic from "next/dynamic";
+
+// ಅಡ್ಮಿನ್ ಪ್ಯಾನೆಲ್ ಕೋಡ್ ಅಡ್ಮಿನ್ ಅದನ್ನು ತೆರೆದಾಗ ಮಾತ್ರ ಡೌನ್‌ಲೋಡ್ ಆಗುತ್ತದೆ; ಸಾಮಾನ್ಯ ಗ್ರಾಹಕರ ಬ್ರೌಸರ್‌ಗೆ ಈ ಕೋಡ್ ಹೋಗುವುದೇ ಇಲ್ಲ
+const AdminDashboard = dynamic(() => import("../../admin/AdminDashboard"), {
+  ssr: false,
+  loading: () => <p className="text-center text-emerald-700 font-semibold py-16">ಲೋಡ್ ಆಗುತ್ತಿದೆ...</p>,
+});
 import { adminLogoutInline, adminStatus, deleteProduct, setProductStock } from "../../admin/actions";
 
 // ಮುಖಪುಟದ ಇನ್‌ಲೈನ್ ಅಡ್ಮಿನ್ ಮೋಡ್: ಅಡ್ಮಿನ್ ಲಾಗಿನ್ ಆಗಿದ್ದರೆ ಮಾತ್ರ ಕಾಣಿಸುತ್ತದೆ.
