@@ -67,13 +67,13 @@ export async function saveBrand({ id, name, logoUrl }) {
     if (old.logo_url && old.logo_url !== logo) await removeOurLogo(sb, old.logo_url);
     return { ok: true };
   }
-  const { error } = await sb.from("brands").insert([{ name: clean, logo_url: logo }]);
+  const { data: created, error } = await sb.from("brands").insert([{ name: clean, logo_url: logo }]).select("id").single();
   if (error) {
     // ಉಳಿಸಲು ಆಗದಿದ್ದರೆ ಈಗಷ್ಟೇ ಅಪ್‌ಲೋಡ್ ಆದ ಲೋಗೋ ಬೇಡ
     if (logo) await removeOurLogo(sb, logo);
     return dbError(error);
   }
-  return { ok: true };
+  return { ok: true, id: created.id };
 }
 
 // ಬ್ರಾಂಡ್ ಅಳಿಸುವುದು: ಅದರ ಪ್ರಾಡಕ್ಟ್‌ಗಳು ಉಳಿಯುತ್ತವೆ (brand_id ಖಾಲಿಯಾಗುತ್ತದೆ), ನಮ್ಮ ಲೋಗೋ ಫೈಲ್ ಅಳಿಸುತ್ತದೆ

@@ -118,8 +118,9 @@ export default function Home() {
     const q = query.trim().toLowerCase();
     return products.filter((p) => {
       if (q && !searchableText(p).includes(q)) return false;
-      if (brandFilter != null) return p.brand_id === brandFilter;
-      if (categorySlug && categoryOf(p)?.slug !== categorySlug) return false;
+      // ವರ್ಗ + ಬ್ರಾಂಡ್ ಎರಡೂ ಒಟ್ಟಿಗೆ (ಉದಾ: ಬೀಜಗಳು › ಒಂದು ಬ್ರಾಂಡ್). "ಬ್ರಾಂಡ್‌ಗಳು" ವರ್ಗದಲ್ಲಿ ಬ್ರಾಂಡ್ ಮಾತ್ರ.
+      if (brandFilter != null && p.brand_id !== brandFilter) return false;
+      if (categorySlug && categorySlug !== "brands" && categoryOf(p)?.slug !== categorySlug) return false;
       if (subFilter != null && p.subcategory_id !== subFilter) return false;
       return true;
     });
@@ -151,8 +152,22 @@ export default function Home() {
     return counts;
   }, [products]);
   const selectedSub = subFilter != null ? categorySubs.find((s) => s.id === subFilter) ?? null : null;
+  // ತೆರೆದಿರುವ ವರ್ಗದಲ್ಲಿ (ಮತ್ತು ಉಪವರ್ಗದಲ್ಲಿ) ಉತ್ಪನ್ನ ಇರುವ ಬ್ರಾಂಡ್‌ಗಳು ಮಾತ್ರ, ಸಂಖ್ಯೆ ಸಹಿತ
+  const categoryBrands = useMemo(() => {
+    if (!categorySlug || categorySlug === "brands" || !brands) return [];
+    const counts: Record<number, number> = {};
+    for (const p of products) {
+      if (p.brand_id == null || categoryOf(p)?.slug !== categorySlug) continue;
+      if (subFilter != null && p.subcategory_id !== subFilter) continue;
+      counts[p.brand_id] = (counts[p.brand_id] ?? 0) + 1;
+    }
+    return brands.filter((b) => counts[b.id]).map((b) => ({ brand: b, n: counts[b.id] }));
+  }, [products, brands, categorySlug, subFilter]);
+  const inRealCategory = selectedCategory != null && selectedCategory.slug !== "brands";
   const activeFilter = selectedBrand
-    ? selectedBrand.name
+    ? inRealCategory
+      ? `${selectedSub ? subName(selectedSub, lang) : catName(selectedCategory)} › ${selectedBrand.name}`
+      : selectedBrand.name
     : selectedSub
       ? subName(selectedSub, lang)
       : selectedCategory
@@ -397,7 +412,10 @@ export default function Home() {
           >
             <button
               type="button"
-              onClick={() => setSubFilter(null)}
+              onClick={() => {
+                setSubFilter(null);
+                setBrandFilter(null);
+              }}
               aria-pressed={subFilter == null}
               className={`flex-none rounded-full border px-3 py-1 text-xs font-semibold whitespace-nowrap transition ${
                 subFilter == null ? "bg-emerald-50 border-emerald-600 text-emerald-800" : "bg-white border-slate-200 text-slate-600 hover:border-emerald-500"
@@ -412,7 +430,10 @@ export default function Home() {
                 <button
                   key={s.id}
                   type="button"
-                  onClick={() => setSubFilter(active ? null : s.id)}
+                  onClick={() => {
+                    setSubFilter(active ? null : s.id);
+                    setBrandFilter(null);
+                  }}
                   aria-pressed={active}
                   className={`flex-none flex items-center gap-1.5 rounded-full border pl-1 pr-3 py-1 text-xs font-semibold whitespace-nowrap transition ${
                     active ? "bg-emerald-50 border-emerald-600 text-emerald-800" : "bg-white border-slate-200 text-slate-600 hover:border-emerald-500"
@@ -421,6 +442,45 @@ export default function Home() {
                   <SubLogo sub={s} lang={lang} className="w-6 h-6 text-[10px]" />
                   {subName(s, lang)}
                   {n > 0 && <span className="text-[10px] font-bold text-slate-400">{n}</span>}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ವರ್ಗದೊಳಗಿನ ಬ್ರಾಂಡ್ ಫಿಲ್ಟರ್: ಆ ವರ್ಗದಲ್ಲಿ ಉತ್ಪನ್ನ ಇರುವ ಬ್ರಾಂಡ್‌ಗಳು ಮಾತ್ರ */}
+        {inRealCategory && categoryBrands.length > 0 && (
+          <div
+            role="group"
+            aria-label={t("brands.filter")}
+            className="-mx-4 px-4 -mt-3 mb-6 flex items-center gap-2 overflow-x-auto pb-1 md:flex-wrap md:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            <span className="flex-none text-xs font-bold text-slate-500">{t("brands.filter")}:</span>
+            <button
+              type="button"
+              onClick={() => setBrandFilter(null)}
+              aria-pressed={brandFilter == null}
+              className={`flex-none rounded-full border px-3 py-1 text-xs font-semibold whitespace-nowrap transition ${
+                brandFilter == null ? "bg-amber-50 border-amber-500 text-amber-900" : "bg-white border-slate-200 text-slate-600 hover:border-amber-400"
+              }`}
+            >
+              {t("brands.any")}
+            </button>
+            {categoryBrands.map(({ brand: b, n }) => {
+              const active = brandFilter === b.id;
+              return (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => setBrandFilter(active ? null : b.id)}
+                  aria-pressed={active}
+                  className={`flex-none flex items-center gap-1.5 rounded-full border pl-1 pr-3 py-1 text-xs font-semibold whitespace-nowrap transition ${
+                    active ? "bg-amber-50 border-amber-500 text-amber-900" : "bg-white border-slate-200 text-slate-600 hover:border-amber-400"
+                  }`}
+                >
+                  <BrandLogo brand={b} className="w-6 h-6 text-[9px] !rounded-full" />
+                  {b.name}
+                  <span className="text-[10px] font-bold text-slate-400">{n}</span>
                 </button>
               );
             })}
@@ -462,7 +522,7 @@ export default function Home() {
           </div>
         )}
 
-        {selectedBrand && (
+        {selectedBrand && !inRealCategory && (
           <div className="mb-6 flex items-center gap-3 bg-white border border-slate-200 rounded-2xl p-3 sm:p-4">
             <BrandLogo brand={selectedBrand} className="w-14 h-14 sm:w-16 sm:h-16 text-sm" />
             <div className="min-w-0 flex-1">
@@ -475,17 +535,18 @@ export default function Home() {
           </div>
         )}
         {/* ಅಡ್ಮಿನ್‌ಗೆ ಮಾತ್ರ: ತೆರೆದಿರುವ ವರ್ಗಕ್ಕೆ (ಉದಾ: ಬೀಜಗಳು) ನೇರವಾಗಿ ಹೊಸ ಪ್ರಾಡಕ್ಟ್; ಗ್ರಾಹಕರಿಗೆ ಕಾಣಿಸುವುದಿಲ್ಲ */}
-        {isAdmin && selectedCategory && selectedCategory.slug !== "brands" && brandFilter == null && (
+        {isAdmin && selectedCategory && selectedCategory.slug !== "brands" && (
           <button
             type="button"
-            onClick={() => adminPanel.openAddForCategory(selectedCategory.slug, subFilter)}
+            onClick={() => adminPanel.openAddForCategory(selectedCategory.slug, subFilter, brandFilter)}
             className="-mt-2 mb-6 w-full sm:w-auto flex items-center justify-center gap-2 bg-amber-50 border border-amber-300 text-amber-900 hover:bg-amber-100 font-semibold text-sm px-4 py-2.5 rounded-xl"
           >
-            <Plus className="w-4 h-4" /> ಈ ವರ್ಗಕ್ಕೆ ಹೊಸ ಪ್ರಾಡಕ್ಟ್ ಸೇರಿಸಿ ({selectedSub ? `${catName(selectedCategory)} › ${subName(selectedSub, lang)}` : catName(selectedCategory)})
+            <Plus className="w-4 h-4" /> ಈ ವರ್ಗಕ್ಕೆ ಹೊಸ ಪ್ರಾಡಕ್ಟ್ ಸೇರಿಸಿ ({selectedSub ? `${catName(selectedCategory)} › ${subName(selectedSub, lang)}` : catName(selectedCategory)}
+            {selectedBrand ? ` › ${selectedBrand.name}` : ""})
           </button>
         )}
         {/* ಅಡ್ಮಿನ್‌ಗೆ ಮಾತ್ರ: ತೆರೆದಿರುವ ಬ್ರಾಂಡ್‌ಗೆ ನೇರವಾಗಿ ಹೊಸ ಪ್ರಾಡಕ್ಟ್ */}
-        {selectedBrand && isAdmin && (
+        {selectedBrand && isAdmin && !inRealCategory && (
           <button
             type="button"
             onClick={() => adminPanel.openAddForBrand(selectedBrand.id)}

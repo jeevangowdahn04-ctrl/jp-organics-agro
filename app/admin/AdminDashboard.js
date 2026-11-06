@@ -19,6 +19,7 @@ import BrandsManager from "../components/brands/BrandsManager";
 import SubcategoriesManager from "../components/subcategories/SubcategoriesManager";
 import { refreshSubcategories, useSubcategories } from "../components/subcategories/useSubcategories";
 import { refreshBrands, useBrands } from "../components/brands/useBrands";
+import QuickAddBrand from "../components/brands/QuickAddBrand";
 import { addProduct, createUploadUrl, deleteProduct, discardUploads, logout, setProductStock, updateProduct } from "./actions";
 
 const inputStyle = { width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #ccc" };
@@ -66,6 +67,8 @@ export default function AdminDashboard({ embedded = false, initialEditId = null,
   const [subcategoryId, setSubcategoryId] = useState(initialSubcategory != null ? String(initialSubcategory) : "");
   const subcategories = useSubcategories();
   const brands = useBrands();
+  // ಫಾರ್ಮ್ ಒಳಗೇ ಹೊಸ ಬ್ರಾಂಡ್ ಸೇರಿಸುವ ಸಣ್ಣ ಬಾಕ್ಸ್
+  const [quickBrand, setQuickBrand] = useState(false);
   const [products, setProducts] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [name, setName] = useState("");
@@ -509,21 +512,46 @@ export default function AdminDashboard({ embedded = false, initialEditId = null,
             })()}
             <div style={{ marginBottom: "12px" }}>
               <label htmlFor="productBrand" style={labelStyle}>ಬ್ರಾಂಡ್ / Brand:</label>
-              <select id="productBrand" value={brandId} onChange={(e) => setBrandId(e.target.value)} style={inputStyle}>
-                <option value="">-- ಬ್ರಾಂಡ್ ಇಲ್ಲ / No brand --</option>
-                {(brands ?? []).map((b) => (
-                  <option key={b.id} value={String(b.id)}>
-                    {b.name}
-                  </option>
-                ))}
-                {brandId && brands && !brands.some((b) => String(b.id) === brandId) && <option value={brandId}>(ಅಳಿಸಿದ ಬ್ರಾಂಡ್ #{brandId})</option>}
-              </select>
+              <div className="flex gap-2">
+                <select
+                  id="productBrand"
+                  value={brandId}
+                  onChange={(e) => {
+                    if (e.target.value === "__new") return setQuickBrand(true);
+                    setBrandId(e.target.value);
+                  }}
+                  style={{ ...inputStyle, flex: 1, minWidth: 0 }}
+                >
+                  <option value="">-- ಬ್ರಾಂಡ್ ಇಲ್ಲ / No brand --</option>
+                  {(brands ?? []).map((b) => (
+                    <option key={b.id} value={String(b.id)}>
+                      {b.name}
+                    </option>
+                  ))}
+                  {brandId && brands && !brands.some((b) => String(b.id) === brandId) && <option value={brandId}>(ಅಳಿಸಿದ ಬ್ರಾಂಡ್ #{brandId})</option>}
+                  <option value="__new">+ ಹೊಸ ಬ್ರಾಂಡ್ ಸೇರಿಸಿ / Add new brand</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setQuickBrand((v) => !v)}
+                  aria-expanded={quickBrand}
+                  className="flex-none whitespace-nowrap rounded border border-emerald-600 text-emerald-800 bg-white hover:bg-emerald-50 font-semibold text-sm px-3"
+                >
+                  + ಹೊಸ ಬ್ರಾಂಡ್
+                </button>
+              </div>
+              <QuickAddBrand
+                open={quickBrand}
+                brands={brands}
+                onClose={() => setQuickBrand(false)}
+                onCreated={(id) => setBrandId(String(id))}
+              />
               <p style={hintStyle}>
-                ಪಟ್ಟಿಯಲ್ಲಿ ಇಲ್ಲವೇ?{" "}
+                ಬ್ರಾಂಡ್ ಆರಿಸಿದರೆ ಗ್ರಾಹಕರು ವರ್ಗ + ಬ್ರಾಂಡ್ ಎರಡರಿಂದಲೂ ಈ ಪ್ರಾಡಕ್ಟ್ ಹುಡುಕಬಹುದು. ಲೋಗೋ ಬದಲಿಸಲು{" "}
                 <button type="button" onClick={() => setTab("brands")} className="text-emerald-700 font-semibold underline">
-                  ಹೊಸ ಬ್ರಾಂಡ್ ಸೇರಿಸಿ
+                  ಬ್ರಾಂಡ್‌ಗಳು
                 </button>{" "}
-                (ಈ ಫಾರ್ಮ್‌ನಲ್ಲಿ ಹಾಕಿದ್ದು ಉಳಿಯುತ್ತದೆ)
+                ಟ್ಯಾಬ್ (ಈ ಫಾರ್ಮ್‌ನಲ್ಲಿ ಹಾಕಿದ್ದು ಉಳಿಯುತ್ತದೆ)
               </p>
             </div>
             <div style={{ marginBottom: "12px" }}>

@@ -88,8 +88,8 @@ export function useAdminPanel() {
     // ಹೊಸ ಪ್ರಾಡಕ್ಟ್ ಫಾರ್ಮ್, ಈ ಬ್ರಾಂಡ್ ಮೊದಲೇ ಆಯ್ಕೆಯಾಗಿ
     openAddForBrand: (brandId: number) => setPanel({ open: true, editId: null, tab: "add", brandId, key: Date.now() }),
     // ಹೊಸ ಪ್ರಾಡಕ್ಟ್ ಫಾರ್ಮ್, ಈ ವರ್ಗ (ಉದಾ: ಬೀಜಗಳು) ಮೊದಲೇ ಆಯ್ಕೆಯಾಗಿ
-    openAddForCategory: (categorySlug: string, subcategoryId?: number | null) =>
-      setPanel({ open: true, editId: null, tab: "add", categorySlug, subcategoryId: subcategoryId ?? null, key: Date.now() }),
+    openAddForCategory: (categorySlug: string, subcategoryId?: number | null, brandId?: number | null) =>
+      setPanel({ open: true, editId: null, tab: "add", categorySlug, subcategoryId: subcategoryId ?? null, brandId: brandId ?? undefined, key: Date.now() }),
     close: () => setPanel({ open: false }),
   };
 }
