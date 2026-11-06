@@ -1,3 +1,4 @@
+import { categoryOf } from "@/lib/categories";
 import type { Lang } from "@/lib/i18n";
 import { highlightLines } from "@/lib/pricing";
 
@@ -26,7 +27,11 @@ export function localizeProduct(product: BilingualFields, lang: Lang) {
   const enPoints = highlightLines(product.highlights_en);
   return {
     name: pick(lang, product.name, product.name_en),
-    category: pick(lang, product.category, product.category_en),
+    // 6 ಮುಖ್ಯ ವರ್ಗಗಳಲ್ಲಿ ಒಂದಾದರೆ ಅದರ ಅಧಿಕೃತ ಹೆಸರು, ಇಲ್ಲದಿದ್ದರೆ ಪ್ರಾಡಕ್ಟ್‌ನಲ್ಲಿರುವ ಹೆಸರು
+    category: (() => {
+      const c = categoryOf(product);
+      return c ? (lang === "en" ? c.en : c.kn) : pick(lang, product.category, product.category_en);
+    })(),
     description: pick(lang, product.description, product.description_en),
     highlights: lang === "en" ? (enPoints.length ? enPoints : knPoints) : knPoints.length ? knPoints : enPoints,
   };

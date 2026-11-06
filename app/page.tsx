@@ -8,6 +8,8 @@ import { getProductImages, getYouTubeId } from "@/lib/media";
 import ImageCarousel from "./components/ImageCarousel";
 import StoriesPreview from "./components/stories/StoriesPreview";
 import SiteNav from "./components/SiteNav";
+import CategoryLogo from "./components/categories/CategoryLogo";
+import { CATEGORIES as SHOP_CATEGORIES, categoryBySlug, categoryOf, type Category, type CategorySlug } from "@/lib/categories";
 import CartButton from "./components/cart/CartButton";
 import { useCart } from "./components/cart/CartProvider";
 import { useCustomer } from "./components/customer/CustomerProvider";
@@ -17,11 +19,10 @@ import { AdminBar, AdminPanel, CardAdminControls, useAdminMode, useAdminPanel } 
 import { useLanguage } from "./components/i18n/LanguageProvider";
 import { formatRupees, WHATSAPP_NUMBER } from "@/lib/whatsapp";
 import { discountPercent, isInStock } from "@/lib/pricing";
-import { translate, type TranslationKey } from "@/lib/i18n";
 import { localizeProduct, searchableText } from "@/lib/localize";
 import {
   Search, ShoppingCart, Phone, MapPin,
-  Leaf, ShieldCheck, Sprout, Wrench,
+  ShieldCheck, Sprout,
   Star, Truck, Award, CheckCircle, MessageCircle, X, Loader2, PlayCircle,
 } from "lucide-react";
 
@@ -44,12 +45,6 @@ interface Product {
   description_en?: string | null;
 }
 
-const CATEGORIES: { key: TranslationKey; icon: typeof Leaf; count: number }[] = [
-  { key: "cat.organic", icon: Leaf, count: 15 },
-  { key: "cat.nutrients", icon: Sprout, count: 25 },
-  { key: "cat.protection", icon: ShieldCheck, count: 30 },
-  { key: "cat.tools", icon: Wrench, count: 10 },
-];
 
 async function loadProducts(): Promise<Product[] | null> {
   try {
@@ -69,7 +64,7 @@ export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
-  const [categoryKey, setCategoryKey] = useState<TranslationKey | null>(null);
+  const [categorySlug, setCategorySlug] = useState<CategorySlug | null>(null);
   const { addItem } = useCart();
   const { requireLogin } = useCustomer();
   const { t, lang } = useLanguage();
@@ -102,18 +97,32 @@ export default function Home() {
   // ಹುಡುಕಾಟ (ಹೆಸರು, ವರ್ಗ, ವಿವರಣೆ) + ವರ್ಗ ಫಿಲ್ಟರ್ (ವರ್ಗದ ಹೆಸರು ಕನ್ನಡ ಅಥವಾ English ಎರಡರಲ್ಲೂ ಹೊಂದುತ್ತದೆ)
   const visibleProducts = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const catNames = categoryKey ? [translate("kn", categoryKey), translate("en", categoryKey)].map((s) => s.toLowerCase()) : [];
     return products.filter((p) => {
       if (q && !searchableText(p).includes(q)) return false;
-      const productCats = [p.category, p.category_en].map((c) => c?.toLowerCase() ?? "");
-      if (catNames.length && !catNames.some((c) => productCats.some((pc) => pc.includes(c)))) return false;
+      if (categorySlug && categoryOf(p)?.slug !== categorySlug) return false;
       return true;
     });
-  }, [products, query, categoryKey]);
-  const activeFilter = categoryKey ? t(categoryKey) : query;
+  }, [products, query, categorySlug]);
+  // ಪ್ರತಿ ವರ್ಗದಲ್ಲಿ ಎಷ್ಟು ಉತ್ಪನ್ನಗಳಿವೆ (ನಿಜವಾದ ಸಂಖ್ಯೆ)
+  const categoryCounts = useMemo(() => {
+    const counts: Partial<Record<CategorySlug, number>> = {};
+    for (const p of products) {
+      const c = categoryOf(p);
+      if (c) counts[c.slug] = (counts[c.slug] ?? 0) + 1;
+    }
+    return counts;
+  }, [products]);
+  const catName = (c: Category) => (lang === "en" ? c.en : c.kn);
+  const selectedCategory = categoryBySlug(categorySlug);
+  const activeFilter = selectedCategory ? catName(selectedCategory) : query;
+  const pickCategory = (slug: CategorySlug | null) => {
+    setQuery("");
+    setCategorySlug(slug);
+    document.getElementById("products")?.scrollIntoView({ behavior: "smooth" });
+  };
   const clearFilter = () => {
     setQuery("");
-    setCategoryKey(null);
+    setCategorySlug(null);
   };
 
   const addToCart = (product: Product) =>
@@ -137,7 +146,7 @@ export default function Home() {
         value={query}
         onChange={(e) => {
           setQuery(e.target.value);
-          setCategoryKey(null);
+          setCategorySlug(null);
         }}
         onKeyDown={(e) => e.key === "Enter" && document.getElementById("products")?.scrollIntoView({ behavior: "smooth" })}
         placeholder={t("header.search")}
@@ -249,28 +258,47 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Categories */}
+      {/* Categories: ಮೊಬೈಲ್ 2, ಟ್ಯಾಬ್ಲೆಟ್ 3, ಲ್ಯಾಪ್‌ಟಾಪ್ 6 ಕಾಲಂ */}
       <section id="categories" className="max-w-6xl xl:max-w-7xl mx-auto px-4 py-10 scroll-mt-24">
-        <h3 className="text-xl font-bold text-slate-800 mb-6">{t("categories.title")}</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {CATEGORIES.map((cat) => {
-            const IconComponent = cat.icon;
+        <div className="flex items-end justify-between gap-3 mb-6 flex-wrap">
+          <h3 className="text-xl font-bold text-slate-800">{t("categories.title")}</h3>
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => {
+                adminPanel.openAdd();
+                // ಪ್ಯಾನೆಲ್ ತೆರೆದು ಲೋಗೋ ಭಾಗ ಕಾಣಿಸುವವರೆಗೆ ಕಾದು ಅಲ್ಲಿಗೆ ಸ್ಕ್ರೋಲ್ (ಗರಿಷ್ಠ ~3 ಸೆಕೆಂಡ್)
+                let tries = 0;
+                const jump = () => {
+                  const el = document.getElementById("category-logos");
+                  if (el) el.scrollIntoView({ block: "start" });
+                  else if (tries++ < 30) setTimeout(jump, 100);
+                };
+                setTimeout(jump, 100);
+              }}
+              className="text-xs font-semibold bg-amber-50 border border-amber-300 text-amber-900 px-3 py-1.5 rounded-full hover:bg-amber-100"
+            >
+              {t("cat.editLogos")}
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
+          {SHOP_CATEGORIES.map((cat) => {
+            const count = categoryCounts[cat.slug] ?? 0;
+            const active = categorySlug === cat.slug;
             return (
               <button
                 type="button"
-                key={cat.key}
-                onClick={() => {
-                  setQuery("");
-                  setCategoryKey(cat.key);
-                  document.getElementById("products")?.scrollIntoView({ behavior: "smooth" });
-                }}
-                className="bg-white p-5 rounded-xl border border-slate-200 hover:border-emerald-500 hover:shadow-md transition cursor-pointer flex flex-col items-center text-center"
+                key={cat.slug}
+                onClick={() => pickCategory(active ? null : cat.slug)}
+                aria-pressed={active}
+                className={`group bg-white p-3 sm:p-4 rounded-2xl border transition flex flex-col items-center text-center gap-2 min-w-0 ${
+                  active ? "border-emerald-600 ring-2 ring-emerald-100 shadow-md" : "border-slate-200 hover:border-emerald-500 hover:shadow-md"
+                }`}
               >
-                <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center mb-3">
-                  <IconComponent className="w-6 h-6 text-emerald-700" />
-                </div>
-                <h4 className="font-bold text-sm text-slate-800 mb-1">{t(cat.key)}</h4>
-                <p className="text-xs text-slate-400">{t("cat.count", { n: cat.count })}</p>
+                <CategoryLogo slug={cat.slug} name={catName(cat)} className="w-16 h-16 md:w-20 md:h-20 group-hover:scale-105 transition" iconClassName="w-8 h-8" />
+                <h4 className="font-bold text-sm text-slate-800 leading-snug line-clamp-2 min-h-[2.5em] flex items-center">{catName(cat)}</h4>
+                <p className="text-xs text-slate-500">{count > 0 ? t("cat.count", { n: count }) : t("cat.soon")}</p>
               </button>
             );
           })}
@@ -290,6 +318,46 @@ export default function Home() {
               &quot;{activeFilter}&quot; <X className="w-3.5 h-3.5" />
             </button>
           )}
+        </div>
+
+        {/* ವರ್ಗದ ಚಿಪ್‌ಗಳು: ಮೊಬೈಲ್‌ನಲ್ಲಿ ಅಡ್ಡ ಸ್ಕ್ರೋಲ್, ದೊಡ್ಡ ಸ್ಕ್ರೀನ್‌ನಲ್ಲಿ ಸಾಲುಗಳಾಗಿ */}
+        <div
+          role="group"
+          aria-label={t("categories.title")}
+          className="-mx-4 px-4 mb-6 flex gap-2 overflow-x-auto pb-1 md:flex-wrap md:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          <button
+            type="button"
+            onClick={() => setCategorySlug(null)}
+            aria-pressed={!categorySlug}
+            className={`flex-none rounded-full border px-4 py-1.5 text-sm font-semibold transition ${
+              !categorySlug ? "bg-emerald-700 border-emerald-700 text-white" : "bg-white border-slate-200 text-slate-700 hover:border-emerald-500"
+            }`}
+          >
+            {t("cat.all")}
+          </button>
+          {SHOP_CATEGORIES.map((cat) => {
+            const active = categorySlug === cat.slug;
+            const count = categoryCounts[cat.slug] ?? 0;
+            return (
+              <button
+                key={cat.slug}
+                type="button"
+                onClick={() => {
+                  setQuery("");
+                  setCategorySlug(active ? null : cat.slug);
+                }}
+                aria-pressed={active}
+                className={`flex-none flex items-center gap-2 rounded-full border pl-1 pr-3 py-1 text-sm font-semibold whitespace-nowrap transition ${
+                  active ? "bg-emerald-700 border-emerald-700 text-white" : "bg-white border-slate-200 text-slate-700 hover:border-emerald-500"
+                }`}
+              >
+                <CategoryLogo slug={cat.slug} name={catName(cat)} className="w-7 h-7" iconClassName="w-4 h-4" />
+                {catName(cat)}
+                {count > 0 && <span className={`text-[11px] font-bold ${active ? "text-emerald-100" : "text-slate-400"}`}>{count}</span>}
+              </button>
+            );
+          })}
         </div>
 
         {loading ? (
@@ -357,7 +425,10 @@ export default function Home() {
                     </div>
 
                     <span className="text-[11px] font-semibold text-emerald-600 uppercase">
-                      {text.category || t("products.defaultCategory")}
+                      {(() => {
+                        const c = categoryOf(item);
+                        return c ? catName(c) : text.category || t("products.defaultCategory");
+                      })()}
                     </span>
                     <h4 className="font-bold text-sm text-slate-900 mt-1 line-clamp-2">
                       <Link href={`/products/${item.id}`} className="hover:text-emerald-700 hover:underline">

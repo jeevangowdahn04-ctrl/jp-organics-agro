@@ -12,6 +12,8 @@ import {
   isOurStorageUrl,
 } from "@/lib/media";
 import { discountPercent, highlightLines, isInStock } from "@/lib/pricing";
+import CategoryLogosManager from "../components/categories/CategoryLogosManager";
+import { CATEGORIES, categoryOf } from "@/lib/categories";
 import { addProduct, createUploadUrl, deleteProduct, discardUploads, logout, updateProduct } from "./actions";
 
 const inputStyle = { width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #ccc" };
@@ -357,26 +359,37 @@ export default function AdminDashboard({ embedded = false, initialEditId = null,
               />
             </div>
             <div style={{ marginBottom: "12px" }}>
-              <label htmlFor="productCategory" style={labelStyle}>{contentLang === "kn" ? "ವರ್ಗ (ಕನ್ನಡ):" : "Category (English):"}</label>
-              <input
-                id="productCategory"
-                type="text"
-                list={contentLang === "kn" ? "categoryOptionsKn" : "categoryOptionsEn"}
-                value={contentLang === "kn" ? category : categoryEn}
-                onChange={(e) => (contentLang === "kn" ? setCategory : setCategoryEn)(e.target.value)}
-                placeholder={contentLang === "kn" ? "ಉದಾ: ಬೆಳೆ ಪೋಷಕಾಂಶಗಳು" : "e.g. Crop Nutrients"}
-                style={inputStyle}
-              />
-              <datalist id="categoryOptionsKn">
-                {[...new Set(["ಸಾವಯವ ಗೊಬ್ಬರಗಳು", "ಬೆಳೆ ಪೋಷಕಾಂಶಗಳು", "ಬೆಳೆ ಸಂರಕ್ಷಣೆ", "ಕೃಷಿ ಪರಿಕರಗಳು", ...products.map((p) => p.category).filter(Boolean)])].map((c) => (
-                  <option key={c} value={c} />
-                ))}
-              </datalist>
-              <datalist id="categoryOptionsEn">
-                {[...new Set(["Organic Fertilizers", "Crop Nutrients", "Crop Protection", "Farm Tools", ...products.map((p) => p.category_en).filter(Boolean)])].map((c) => (
-                  <option key={c} value={c} />
-                ))}
-              </datalist>
+              <label htmlFor="productCategory" style={labelStyle}>ವರ್ಗ / Category:</label>
+              {(() => {
+                const matched = categoryOf({ category, category_en: categoryEn });
+                const legacy = !matched && (category || categoryEn) ? category || categoryEn : "";
+                return (
+                  <select
+                    id="productCategory"
+                    value={matched ? matched.slug : legacy ? "__legacy" : ""}
+                    onChange={(e) => {
+                      const cat = CATEGORIES.find((c) => c.slug === e.target.value);
+                      if (cat) {
+                        setCategory(cat.kn);
+                        setCategoryEn(cat.en);
+                      } else if (e.target.value === "") {
+                        setCategory("");
+                        setCategoryEn("");
+                      }
+                    }}
+                    style={inputStyle}
+                  >
+                    <option value="">-- ವರ್ಗ ಆಯ್ಕೆ ಮಾಡಿ / Choose category --</option>
+                    {CATEGORIES.map((c) => (
+                      <option key={c.slug} value={c.slug}>
+                        {c.kn} / {c.en}
+                      </option>
+                    ))}
+                    {legacy && <option value="__legacy">(ಹಳೆಯ ವರ್ಗ) {legacy}</option>}
+                  </select>
+                );
+              })()}
+              <p style={hintStyle}>ಮುಖಪುಟದ 6 ವರ್ಗಗಳಲ್ಲಿ ಒಂದನ್ನು ಆರಿಸಿ; ಕನ್ನಡ ಮತ್ತು English ಹೆಸರು ಎರಡೂ ತಾನಾಗಿ ಸೇರುತ್ತವೆ.</p>
             </div>
             <div style={{ marginBottom: "12px" }}>
               <label htmlFor="productHighlights" style={labelStyle}>{contentLang === "kn" ? "ಮುಖ್ಯಾಂಶಗಳು (ಕನ್ನಡ):" : "Key Highlights (English):"}</label>
@@ -581,6 +594,9 @@ export default function AdminDashboard({ embedded = false, initialEditId = null,
         </div>
         {status && <p style={{ margin: "10px 0 0 0", color: "#2e7d32", fontSize: "14px" }}>{status}</p>}
       </form>
+
+      {/* ವರ್ಗಗಳ ಲೋಗೋ (ಫೋಟೋ ಅಪ್‌ಲೋಡ್ ಅಥವಾ ಇಮೇಜ್ ಲಿಂಕ್) */}
+      <CategoryLogosManager />
 
       <h3 style={{ marginTop: "30px" }}>ಹಾಲಿ ಇರುವ ಪ್ರಾಡಕ್ಟ್‌ಗಳು ({products.length})</h3>
       <div style={{ marginTop: "10px" }}>
