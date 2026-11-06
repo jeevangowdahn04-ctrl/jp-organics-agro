@@ -252,6 +252,18 @@ export async function setProductStock(id, inStock) {
   return { ok: true };
 }
 
+// ಈಗಿರುವ ಪ್ರಾಡಕ್ಟ್ ಅನ್ನು ಬ್ರಾಂಡ್‌ಗೆ ಸೇರಿಸುವುದು / ಬ್ರಾಂಡ್‌ನಿಂದ ತೆಗೆಯುವುದು (brandId = null)
+export async function setProductBrand(id, brandId) {
+  if (!(await isAdmin())) return SESSION_EXPIRED;
+  const clean = brandId === null || brandId === "" || brandId === undefined ? null : Number(brandId);
+  if (clean !== null && (!Number.isInteger(clean) || clean <= 0)) return { error: "ಬ್ರಾಂಡ್ ಸರಿಯಿಲ್ಲ." };
+  const supabaseAdmin = getSupabaseAdmin();
+  if (!supabaseAdmin) return NO_SERVICE_KEY;
+  const { error } = await supabaseAdmin.from("products").update({ brand_id: clean }).eq("id", id);
+  if (error) return dbError(error);
+  return { ok: true };
+}
+
 // ಅಪ್‌ಲೋಡ್ ಆದರೂ ಸೇವ್ ಆಗದ ಫೈಲ್‌ಗಳನ್ನು ಅಳಿಸುವುದು (ಉದಾ: ಫಾರ್ಮ್ ಸೇವ್ ವಿಫಲವಾದಾಗ)
 export async function discardUploads(urls) {
   if (!(await isAdmin())) return SESSION_EXPIRED;

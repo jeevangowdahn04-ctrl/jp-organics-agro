@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useRef, useState } from "react";
-import { Link2, Loader2, Pencil, Plus, Trash2, Upload, X } from "lucide-react";
+import { ChevronRight, Link2, Loader2, PackagePlus, Pencil, Plus, Trash2, Unlink, Upload, X } from "lucide-react";
 import { BrandLogo, refreshBrands, useBrands, type Brand } from "./useBrands";
 import { createBrandUploadUrl, deleteBrand, discardBrandLogo, saveBrand } from "@/app/brands/actions";
+import { setProductBrand } from "@/app/admin/actions";
 import { supabase } from "@/lib/supabase";
+import { getProductImages } from "@/lib/media";
 import { IMAGE_TYPES, MEDIA_BUCKET } from "@/lib/media";
 
 type Result = { error?: string; ok?: boolean };
@@ -21,8 +23,180 @@ const ERR: Record<string, string> = {
 };
 const errText = (code?: string) => ERR[code ?? ""] ?? "ಉಳಿಸಲು ಆಗಲಿಲ್ಲ. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.";
 
-// ಅಡ್ಮಿನ್: ಬ್ರಾಂಡ್ ಸೇರಿಸುವುದು / ಎಡಿಟ್ / ಅಳಿಸುವುದು. productCounts = ಪ್ರತಿ ಬ್ರಾಂಡ್‌ನ ಪ್ರಾಡಕ್ಟ್ ಸಂಖ್ಯೆ
-export default function BrandsManager({ productCounts = {} }: { productCounts?: Record<number, number> }) {
+export interface AdminProduct {
+  id: number;
+  name: string;
+  name_en?: string | null;
+  price?: number | string | null;
+  brand_id?: number | null;
+  image_url?: string | null;
+  image_urls?: string[] | null;
+}
+
+// ಒಂದು ಬ್ರಾಂಡ್ ತೆರೆದಾಗ: ಹೊಸ ಪ್ರಾಡಕ್ಟ್ ಸೇರಿಸುವ ಬಟನ್, ಆ ಬ್ರಾಂಡ್‌ನ ಪ್ರಾಡಕ್ಟ್‌ಗಳು, ಈಗಿರುವ ಪ್ರಾಡಕ್ಟ್ ಲಿಂಕ್ ಮಾಡುವುದು
+function BrandView({
+  brand,
+  brands,
+  products,
+  onClose,
+  onAddProduct,
+  onEditProduct,
+  onProductsChanged,
+}: {
+  brand: Brand;
+  brands: Brand[];
+  products: AdminProduct[];
+  onClose: () => void;
+  onAddProduct: (brandId: number) => void;
+  onEditProduct: (p: AdminProduct) => void;
+  onProductsChanged: () => void;
+}) {
+  const mine = products.filter((p) => p.brand_id === brand.id);
+  const others = products.filter((p) => p.brand_id !== brand.id);
+  const [pick, setPick] = useState("");
+  const [busy, setBusy] = useState<number | "link" | null>(null);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const otherBrand = (id?: number | null) => (id != null ? brands.find((b) => b.id === id)?.name : null);
+
+  const link = async () => {
+    const p = others.find((x) => String(x.id) === pick);
+    if (!p) return;
+    const from = otherBrand(p.brand_id);
+    if (from && !window.confirm(`"${p.name}" ಈಗ "${from}" ಬ್ರಾಂಡ್‌ನಲ್ಲಿದೆ. "${brand.name}" ಗೆ ಬದಲಾಯಿಸಬೇಕೇ?`)) return;
+    setBusy("link");
+    const res = (await setProductBrand(p.id, brand.id)) as Result;
+    setBusy(null);
+    if (res?.error) return setMsg({ ok: false, text: res.error });
+    setPick("");
+    setMsg({ ok: true, text: `"${p.name}" ಅನ್ನು ${brand.name} ಬ್ರಾಂಡ್‌ಗೆ ಸೇರಿಸಲಾಗಿದೆ.` });
+    onProductsChanged();
+  };
+
+  const unlink = async (p: AdminProduct) => {
+    if (!window.confirm(`"${p.name}" ಅನ್ನು ${brand.name} ಬ್ರಾಂಡ್‌ನಿಂದ ತೆಗೆಯಬೇಕೇ?\n(ಪ್ರಾಡಕ್ಟ್ ಅಳಿಯುವುದಿಲ್ಲ, ಬ್ರಾಂಡ್ ಮಾತ್ರ ಖಾಲಿಯಾಗುತ್ತದೆ)`)) return;
+    setBusy(p.id);
+    const res = (await setProductBrand(p.id, null)) as Result;
+    setBusy(null);
+    if (res?.error) return setMsg({ ok: false, text: res.error });
+    setMsg({ ok: true, text: `"${p.name}" ಅನ್ನು ಬ್ರಾಂಡ್‌ನಿಂದ ತೆಗೆಯಲಾಗಿದೆ.` });
+    onProductsChanged();
+  };
+
+  return (
+    <section id="brand-view" className="rounded-2xl border-2 border-emerald-500 bg-white p-3 sm:p-4 space-y-3 scroll-mt-20">
+      <div className="flex items-center gap-3">
+        <BrandLogo brand={brand} className="w-14 h-14 text-sm" />
+        <div className="min-w-0 flex-1">
+          <p className="font-bold text-slate-900 truncate">{brand.name}</p>
+          <p className="text-xs text-slate-500">{mine.length} ಪ್ರಾಡಕ್ಟ್</p>
+        </div>
+        <button type="button" onClick={onClose} aria-label="ಮುಚ್ಚಿ" className="p-1.5 rounded-full hover:bg-slate-100 flex-none">
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => onAddProduct(brand.id)}
+        className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm py-3 rounded-xl"
+      >
+        <PackagePlus className="w-5 h-5" /> ಈ ಬ್ರಾಂಡ್‌ಗೆ ಹೊಸ ಪ್ರಾಡಕ್ಟ್ ಸೇರಿಸಿ
+      </button>
+
+      <div>
+        <p className="text-sm font-bold text-slate-700 mb-2">{brand.name} ಬ್ರಾಂಡ್‌ನ ಪ್ರಾಡಕ್ಟ್‌ಗಳು</p>
+        {mine.length === 0 ? (
+          <p className="text-xs text-slate-500 border border-dashed rounded-xl px-3 py-4 text-center">ಇನ್ನೂ ಯಾವುದೇ ಪ್ರಾಡಕ್ಟ್ ಇಲ್ಲ. ಮೇಲಿನ ಬಟನ್‌ನಿಂದ ಹೊಸದನ್ನು ಸೇರಿಸಿ ಅಥವಾ ಕೆಳಗೆ ಈಗಿರುವ ಪ್ರಾಡಕ್ಟ್ ಆರಿಸಿ.</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {mine.map((p) => {
+              const img = getProductImages(p)[0];
+              return (
+                <li key={p.id} className="flex items-center gap-2 border border-slate-200 rounded-xl p-2 min-w-0">
+                  {img ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={img} alt="" className="w-10 h-10 rounded-lg object-cover flex-none" />
+                  ) : (
+                    <span className="w-10 h-10 rounded-lg bg-slate-100 flex-none" />
+                  )}
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold truncate">{p.name}</span>
+                    {p.price != null && <span className="block text-xs text-slate-500">₹{p.price}</span>}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onEditProduct(p)}
+                    className="flex items-center gap-1 text-xs font-semibold border border-emerald-600 text-emerald-700 rounded-lg px-2.5 py-1.5 hover:bg-emerald-50 flex-none"
+                  >
+                    <Pencil className="w-3.5 h-3.5" /> <span className="hidden min-[400px]:inline">ಎಡಿಟ್</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => unlink(p)}
+                    disabled={busy === p.id}
+                    title="ಬ್ರಾಂಡ್‌ನಿಂದ ತೆಗೆಯಿರಿ"
+                    className="flex items-center gap-1 text-xs font-semibold border border-slate-300 text-slate-600 rounded-lg px-2.5 py-1.5 hover:bg-slate-50 disabled:opacity-50 flex-none"
+                  >
+                    {busy === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Unlink className="w-3.5 h-3.5" />}
+                    <span className="hidden min-[400px]:inline">ತೆಗೆಯಿರಿ</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+
+      {others.length > 0 && (
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
+          <p className="text-sm font-bold text-slate-700">ಈಗಿರುವ ಪ್ರಾಡಕ್ಟ್ ಅನ್ನು ಈ ಬ್ರಾಂಡ್‌ಗೆ ಸೇರಿಸಿ</p>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <select
+              value={pick}
+              onChange={(e) => setPick(e.target.value)}
+              aria-label="ಪ್ರಾಡಕ್ಟ್ ಆಯ್ಕೆ"
+              className="flex-1 min-w-0 border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white outline-none focus:border-emerald-600"
+            >
+              <option value="">-- ಪ್ರಾಡಕ್ಟ್ ಆಯ್ಕೆ ಮಾಡಿ --</option>
+              {others.map((p) => (
+                <option key={p.id} value={String(p.id)}>
+                  {p.name}
+                  {otherBrand(p.brand_id) ? ` (ಈಗ: ${otherBrand(p.brand_id)})` : " (ಬ್ರಾಂಡ್ ಇಲ್ಲ)"}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={link}
+              disabled={!pick || busy === "link"}
+              className="flex items-center justify-center gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold px-4 py-2 rounded-lg disabled:opacity-40 flex-none"
+            >
+              {busy === "link" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />} ಸೇರಿಸಿ
+            </button>
+          </div>
+        </div>
+      )}
+
+      {msg && <p className={`text-xs ${msg.ok ? "text-emerald-700" : "text-red-600"}`}>{msg.text}</p>}
+    </section>
+  );
+}
+
+// ಅಡ್ಮಿನ್: ಬ್ರಾಂಡ್ ಸೇರಿಸುವುದು / ಎಡಿಟ್ / ಅಳಿಸುವುದು; ಒಂದು ಬ್ರಾಂಡ್ ಒತ್ತಿದರೆ ಅದರ ಪ್ರಾಡಕ್ಟ್ ನಿರ್ವಹಣೆ
+export default function BrandsManager({
+  productCounts = {},
+  products = [],
+  onAddProduct = () => {},
+  onEditProduct = () => {},
+  onProductsChanged = () => {},
+}: {
+  productCounts?: Record<number, number>;
+  products?: AdminProduct[];
+  onAddProduct?: (brandId: number) => void;
+  onEditProduct?: (p: AdminProduct) => void;
+  onProductsChanged?: () => void;
+}) {
+  const [openId, setOpenId] = useState<number | null>(null);
   const brands = useBrands();
   const [editing, setEditing] = useState<Brand | null>(null);
   const [name, setName] = useState("");
@@ -117,6 +291,7 @@ export default function BrandsManager({ productCounts = {} }: { productCounts?: 
     setBusy("");
     if (res.error) return setMsg({ ok: false, text: errText(res.error) });
     if (editing?.id === b.id) reset();
+    if (openId === b.id) setOpenId(null);
     setMsg({ ok: true, text: "ಬ್ರಾಂಡ್ ಅಳಿಸಲಾಗಿದೆ." });
     refreshBrands();
   };
@@ -214,8 +389,24 @@ export default function BrandsManager({ productCounts = {} }: { productCounts?: 
         </button>
       </form>
 
+      {(() => {
+        const open = openId != null ? brands?.find((b) => b.id === openId) : null;
+        return open ? (
+          <BrandView
+            brand={open}
+            brands={brands ?? []}
+            products={products}
+            onClose={() => setOpenId(null)}
+            onAddProduct={onAddProduct}
+            onEditProduct={onEditProduct}
+            onProductsChanged={onProductsChanged}
+          />
+        ) : null;
+      })()}
+
       <div>
-        <h3 className="font-bold text-slate-800 mb-2">ಎಲ್ಲಾ ಬ್ರಾಂಡ್‌ಗಳು ({brands?.length ?? 0})</h3>
+        <h3 className="font-bold text-slate-800 mb-1">ಎಲ್ಲಾ ಬ್ರಾಂಡ್‌ಗಳು ({brands?.length ?? 0})</h3>
+        <p className="text-xs text-slate-500 mb-2">ಬ್ರಾಂಡ್ ಒತ್ತಿದರೆ ಅದರ ಪ್ರಾಡಕ್ಟ್‌ಗಳು, ಹೊಸ ಪ್ರಾಡಕ್ಟ್ ಸೇರಿಸುವುದು ಮತ್ತು ಈಗಿರುವ ಪ್ರಾಡಕ್ಟ್ ಲಿಂಕ್ ಮಾಡುವುದು.</p>
         {brands === null ? (
           <p className="text-center py-6">
             <Loader2 className="w-5 h-5 animate-spin inline text-emerald-700" />
@@ -227,13 +418,25 @@ export default function BrandsManager({ productCounts = {} }: { productCounts?: 
             {brands.map((b) => (
               <li
                 key={b.id}
-                className={`flex items-center gap-3 border rounded-xl p-2.5 bg-white min-w-0 ${editing?.id === b.id ? "border-amber-400 ring-2 ring-amber-100" : "border-slate-200"}`}
+                className={`flex items-center gap-2 border rounded-xl p-2.5 bg-white min-w-0 ${openId === b.id ? "border-emerald-500 ring-2 ring-emerald-100" : ""} ${editing?.id === b.id ? "border-amber-400 ring-2 ring-amber-100" : "border-slate-200"}`}
               >
-                <BrandLogo brand={b} className="w-12 h-12 text-sm" />
-                <div className="min-w-0 flex-1">
-                  <p className="font-bold text-sm truncate">{b.name}</p>
-                  <p className="text-[11px] text-slate-500">{productCounts[b.id] ?? 0} ಪ್ರಾಡಕ್ಟ್</p>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpenId(b.id);
+                    setTimeout(() => document.getElementById("brand-view")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+                  }}
+                  aria-label={`${b.name}: ಪ್ರಾಡಕ್ಟ್‌ಗಳು`}
+                  className="flex items-center gap-3 min-w-0 flex-1 text-left rounded-lg hover:bg-slate-50 -m-1 p-1"
+                >
+                  <BrandLogo brand={b} className="w-12 h-12 text-sm" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-bold text-sm truncate">{b.name}</span>
+                    <span className="flex items-center gap-0.5 text-[11px] text-emerald-700 font-semibold">
+                      {productCounts[b.id] ?? 0} ಪ್ರಾಡಕ್ಟ್ · ತೆರೆಯಿರಿ <ChevronRight className="w-3 h-3" />
+                    </span>
+                  </span>
+                </button>
                 <button
                   type="button"
                   onClick={() => startEdit(b)}

@@ -41,7 +41,7 @@ export function useAdminMode() {
 }
 
 export type AdminTab = "add" | "products" | "categories" | "brands";
-type PanelState = { open: false } | { open: true; editId: number | string | null; tab: AdminTab; key: number };
+type PanelState = { open: false } | { open: true; editId: number | string | null; tab: AdminTab; brandId?: number | null; key: number };
 
 export function useAdminPanel() {
   const [panel, setPanel] = useState<PanelState>({ open: false });
@@ -50,6 +50,8 @@ export function useAdminPanel() {
     openTab: (tab: AdminTab) => setPanel({ open: true, editId: null, tab, key: Date.now() }),
     openAdd: () => setPanel({ open: true, editId: null, tab: "add", key: Date.now() }),
     openEdit: (id: number | string) => setPanel({ open: true, editId: id, tab: "add", key: Date.now() }),
+    // ಹೊಸ ಪ್ರಾಡಕ್ಟ್ ಫಾರ್ಮ್, ಈ ಬ್ರಾಂಡ್ ಮೊದಲೇ ಆಯ್ಕೆಯಾಗಿ
+    openAddForBrand: (brandId: number) => setPanel({ open: true, editId: null, tab: "add", brandId, key: Date.now() }),
     close: () => setPanel({ open: false }),
   };
 }
@@ -179,11 +181,13 @@ export function CardAdminControls({
 export function AdminPanel({
   editId,
   tab = "add",
+  brandId = null,
   onClose,
   onProductsChanged,
 }: {
   editId: number | string | null;
   tab?: AdminTab;
+  brandId?: number | null;
   onClose: () => void;
   onProductsChanged: () => void;
 }) {
@@ -212,7 +216,7 @@ export function AdminPanel({
           </div>
         </div>
       </div>
-      <AdminDashboard embedded initialEditId={editId} initialTab={tab} onProductsChanged={onProductsChanged} />
+      <AdminDashboard embedded initialEditId={editId} initialTab={tab} initialBrandId={brandId} onProductsChanged={onProductsChanged} />
     </div>
   );
 }

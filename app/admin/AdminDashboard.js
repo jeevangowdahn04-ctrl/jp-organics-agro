@@ -16,7 +16,7 @@ import CategoryLogosManager from "../components/categories/CategoryLogosManager"
 import { CATEGORIES, categoryOf } from "@/lib/categories";
 import { BadgeCheck, LayoutGrid, LogOut, Package, Pencil, PlusCircle, Search, Settings, Trash2 } from "lucide-react";
 import BrandsManager from "../components/brands/BrandsManager";
-import { useBrands } from "../components/brands/useBrands";
+import { refreshBrands, useBrands } from "../components/brands/useBrands";
 import { addProduct, createUploadUrl, deleteProduct, discardUploads, logout, setProductStock, updateProduct } from "./actions";
 
 const inputStyle = { width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #ccc" };
@@ -52,12 +52,13 @@ const releasePreview = (img) => img.file && URL.revokeObjectURL(img.preview);
 // embedded: ಮುಖಪುಟದ ಇನ್‌ಲೈನ್ ಅಡ್ಮಿನ್ ಪ್ಯಾನೆಲ್ ಒಳಗೆ (ಸ್ವಂತ ಹೆಡರ್/ಲಾಗ್‌ಔಟ್ ಇಲ್ಲ)
 // initialEditId: ತೆರೆದ ತಕ್ಷಣ ಈ ಪ್ರಾಡಕ್ಟ್ ಎಡಿಟ್ ಮೋಡ್‌ನಲ್ಲಿ; onProductsChanged: ಸೇರಿಸು/ಎಡಿಟ್/ಅಳಿಸು ನಂತರ ತಿಳಿಸುವುದು
 // initialTab: "add" (ಹೊಸ ಪ್ರಾಡಕ್ಟ್ / ಎಡಿಟ್ ಫಾರ್ಮ್) | "products" (ಪಟ್ಟಿ: ಎಡಿಟ್, ಸ್ಟಾಕ್, ಅಳಿಸಿ) | "categories" (ವರ್ಗಗಳ ಲೋಗೋ) | "brands" (ಬ್ರಾಂಡ್‌ಗಳು)
-/** @param {{ embedded?: boolean, initialEditId?: string | number | null, initialTab?: "add" | "products" | "categories" | "brands", onProductsChanged?: () => void }} [props] */
-export default function AdminDashboard({ embedded = false, initialEditId = null, initialTab = "add", onProductsChanged } = {}) {
+/** @param {{ embedded?: boolean, initialEditId?: string | number | null, initialTab?: "add" | "products" | "categories" | "brands", initialBrandId?: number | null, onProductsChanged?: () => void }} [props] */
+// initialBrandId: "ಈ ಬ್ರಾಂಡ್‌ಗೆ ಹೊಸ ಪ್ರಾಡಕ್ಟ್" ಬಟನ್‌ನಿಂದ ಬಂದಾಗ ಫಾರ್ಮ್‌ನಲ್ಲಿ ಆ ಬ್ರಾಂಡ್ ಮೊದಲೇ ಆಯ್ಕೆ
+export default function AdminDashboard({ embedded = false, initialEditId = null, initialTab = "add", initialBrandId = null, onProductsChanged } = {}) {
   const [tab, setTab] = useState(initialEditId != null ? "add" : initialTab);
   const [listQuery, setListQuery] = useState("");
   const [stockBusyId, setStockBusyId] = useState(null);
-  const [brandId, setBrandId] = useState("");
+  const [brandId, setBrandId] = useState(initialBrandId != null ? String(initialBrandId) : "");
   const brands = useBrands();
   const [products, setProducts] = useState([]);
   const [editingId, setEditingId] = useState(null);
@@ -207,6 +208,11 @@ export default function AdminDashboard({ embedded = false, initialEditId = null,
     setTab("add");
     setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
   };
+
+  // ಬ್ರಾಂಡ್ ಡ್ರಾಪ್‌ಡೌನ್‌ನಲ್ಲಿ ಎಲ್ಲಾ (ಇತ್ತೀಚೆಗೆ ಸೇರಿಸಿದ) ಬ್ರಾಂಡ್‌ಗಳು ಕಾಣಿಸಲು, ತೆರೆದಾಗ ಪಟ್ಟಿಯನ್ನು ಮತ್ತೆ ತರುವುದು
+  useEffect(() => {
+    refreshBrands();
+  }, []);
 
   // Supabase ನಿಂದ ಪ್ರಾಡಕ್ಟ್‌ಗಳ ಪಟ್ಟಿ ಪಡೆಯುವುದು
   useEffect(() => {
@@ -689,7 +695,19 @@ export default function AdminDashboard({ embedded = false, initialEditId = null,
 
       {tab === "categories" && <CategoryLogosManager />}
 
-      {tab === "brands" && <BrandsManager productCounts={brandCounts} />}
+      {tab === "brands" && (
+        <BrandsManager
+          productCounts={brandCounts}
+          products={products}
+          onAddProduct={(id) => {
+            resetForm();
+            setBrandId(String(id));
+            setTab("add");
+          }}
+          onEditProduct={startEdit}
+          onProductsChanged={refreshProducts}
+        />
+      )}
 
       {tab === "products" && (
         <div className="space-y-3">

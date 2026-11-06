@@ -22,7 +22,7 @@ import { formatRupees, WHATSAPP_NUMBER } from "@/lib/whatsapp";
 import { discountPercent, isInStock } from "@/lib/pricing";
 import { localizeProduct, searchableText } from "@/lib/localize";
 import {
-  Search, ShoppingCart, Phone, MapPin,
+  Search, ShoppingCart, Phone, MapPin, Plus,
   ShieldCheck, Sprout,
   Star, Truck, Award, CheckCircle, MessageCircle, X, Loader2, PlayCircle,
 } from "lucide-react";
@@ -409,6 +409,16 @@ export default function Home() {
             </button>
           </div>
         )}
+        {/* ಅಡ್ಮಿನ್‌ಗೆ ಮಾತ್ರ: ತೆರೆದಿರುವ ಬ್ರಾಂಡ್‌ಗೆ ನೇರವಾಗಿ ಹೊಸ ಪ್ರಾಡಕ್ಟ್ */}
+        {selectedBrand && isAdmin && (
+          <button
+            type="button"
+            onClick={() => adminPanel.openAddForBrand(selectedBrand.id)}
+            className="-mt-3 mb-6 w-full sm:w-auto flex items-center justify-center gap-2 bg-amber-50 border border-amber-300 text-amber-900 hover:bg-amber-100 font-semibold text-sm px-4 py-2.5 rounded-xl"
+          >
+            <Plus className="w-4 h-4" /> ಈ ಬ್ರಾಂಡ್‌ಗೆ ಹೊಸ ಪ್ರಾಡಕ್ಟ್ ಸೇರಿಸಿ ({selectedBrand.name})
+          </button>
+        )}
 
         {showBrandGrid ? null : loading ? (
           <div className="flex items-center justify-center py-12 text-emerald-700 font-semibold gap-2">
@@ -584,6 +594,7 @@ export default function Home() {
           key={adminPanel.panel.key}
           editId={adminPanel.panel.editId}
           tab={adminPanel.panel.tab}
+          brandId={adminPanel.panel.brandId ?? null}
           onClose={adminPanel.close}
           onProductsChanged={fetchProducts}
         />
