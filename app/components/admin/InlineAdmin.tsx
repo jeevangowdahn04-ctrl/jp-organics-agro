@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { ExternalLink, LayoutGrid, LogOut, Package, Pencil, Plus, Settings, Trash2, X } from "lucide-react";
+import { BadgeCheck, ExternalLink, LayoutGrid, LogOut, Package, Pencil, Plus, Settings, Trash2, X } from "lucide-react";
 import AdminDashboard from "../../admin/AdminDashboard";
 import { adminLogoutInline, adminStatus, deleteProduct, setProductStock } from "../../admin/actions";
 
@@ -40,7 +40,7 @@ export function useAdminMode() {
   return [isAdmin, setAdminMode] as const;
 }
 
-export type AdminTab = "add" | "products" | "categories";
+export type AdminTab = "add" | "products" | "categories" | "brands";
 type PanelState = { open: false } | { open: true; editId: number | string | null; tab: AdminTab; key: number };
 
 export function useAdminPanel() {
@@ -61,6 +61,7 @@ export function AdminBar({ onOpen, onLoggedOut }: { onOpen: (tab: AdminTab) => v
     { tab: "add", icon: Plus, label: "ಹೊಸ ಪ್ರಾಡಕ್ಟ್", primary: true },
     { tab: "products", icon: Package, label: "ಪ್ರಾಡಕ್ಟ್‌ಗಳು" },
     { tab: "categories", icon: LayoutGrid, label: "ವರ್ಗಗಳ ಲೋಗೋ" },
+    { tab: "brands", icon: BadgeCheck, label: "ಬ್ರಾಂಡ್‌ಗಳು" },
   ];
   return (
     <div className="bg-amber-50 border-b border-amber-200 text-amber-900">
@@ -71,7 +72,7 @@ export function AdminBar({ onOpen, onLoggedOut }: { onOpen: (tab: AdminTab) => v
         </p>
         {/* ಮೊಬೈಲ್: ಶೀರ್ಷಿಕೆ + Exit ಒಂದು ಸಾಲು, 3 ಬಟನ್‌ಗಳು ಕೆಳಗೆ ಪೂರ್ಣ ಅಗಲ; ದೊಡ್ಡ ಸ್ಕ್ರೀನ್: ಎಲ್ಲವೂ ಒಂದೇ ಸಾಲು */}
         <div className="contents">
-          <div role="group" aria-label="ಅಡ್ಮಿನ್ ಕಂಟ್ರೋಲ್ಸ್" className="order-3 md:order-2 w-full md:w-auto grid grid-cols-3 rounded-xl md:rounded-full border border-amber-300 bg-white overflow-hidden divide-x divide-amber-200">
+          <div role="group" aria-label="ಅಡ್ಮಿನ್ ಕಂಟ್ರೋಲ್ಸ್" className="order-3 md:order-2 w-full md:w-auto grid grid-cols-4 rounded-xl md:rounded-full border border-amber-300 bg-white overflow-hidden divide-x divide-amber-200">
             {actions.map(({ tab, icon: Icon, label, primary }) => (
               <button
                 key={tab}

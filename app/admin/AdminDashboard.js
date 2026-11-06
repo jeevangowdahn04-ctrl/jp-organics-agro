@@ -14,7 +14,9 @@ import {
 import { discountPercent, highlightLines, isInStock } from "@/lib/pricing";
 import CategoryLogosManager from "../components/categories/CategoryLogosManager";
 import { CATEGORIES, categoryOf } from "@/lib/categories";
-import { LayoutGrid, LogOut, Package, Pencil, PlusCircle, Search, Settings, Trash2 } from "lucide-react";
+import { BadgeCheck, LayoutGrid, LogOut, Package, Pencil, PlusCircle, Search, Settings, Trash2 } from "lucide-react";
+import BrandsManager from "../components/brands/BrandsManager";
+import { useBrands } from "../components/brands/useBrands";
 import { addProduct, createUploadUrl, deleteProduct, discardUploads, logout, setProductStock, updateProduct } from "./actions";
 
 const inputStyle = { width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #ccc" };
@@ -49,12 +51,14 @@ const releasePreview = (img) => img.file && URL.revokeObjectURL(img.preview);
 
 // embedded: ಮುಖಪುಟದ ಇನ್‌ಲೈನ್ ಅಡ್ಮಿನ್ ಪ್ಯಾನೆಲ್ ಒಳಗೆ (ಸ್ವಂತ ಹೆಡರ್/ಲಾಗ್‌ಔಟ್ ಇಲ್ಲ)
 // initialEditId: ತೆರೆದ ತಕ್ಷಣ ಈ ಪ್ರಾಡಕ್ಟ್ ಎಡಿಟ್ ಮೋಡ್‌ನಲ್ಲಿ; onProductsChanged: ಸೇರಿಸು/ಎಡಿಟ್/ಅಳಿಸು ನಂತರ ತಿಳಿಸುವುದು
-// initialTab: "add" (ಹೊಸ ಪ್ರಾಡಕ್ಟ್ / ಎಡಿಟ್ ಫಾರ್ಮ್) | "products" (ಪಟ್ಟಿ: ಎಡಿಟ್, ಸ್ಟಾಕ್, ಅಳಿಸಿ) | "categories" (ವರ್ಗಗಳ ಲೋಗೋ)
-/** @param {{ embedded?: boolean, initialEditId?: string | number | null, initialTab?: "add" | "products" | "categories", onProductsChanged?: () => void }} [props] */
+// initialTab: "add" (ಹೊಸ ಪ್ರಾಡಕ್ಟ್ / ಎಡಿಟ್ ಫಾರ್ಮ್) | "products" (ಪಟ್ಟಿ: ಎಡಿಟ್, ಸ್ಟಾಕ್, ಅಳಿಸಿ) | "categories" (ವರ್ಗಗಳ ಲೋಗೋ) | "brands" (ಬ್ರಾಂಡ್‌ಗಳು)
+/** @param {{ embedded?: boolean, initialEditId?: string | number | null, initialTab?: "add" | "products" | "categories" | "brands", onProductsChanged?: () => void }} [props] */
 export default function AdminDashboard({ embedded = false, initialEditId = null, initialTab = "add", onProductsChanged } = {}) {
   const [tab, setTab] = useState(initialEditId != null ? "add" : initialTab);
   const [listQuery, setListQuery] = useState("");
   const [stockBusyId, setStockBusyId] = useState(null);
+  const [brandId, setBrandId] = useState("");
+  const brands = useBrands();
   const [products, setProducts] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [name, setName] = useState("");
@@ -158,6 +162,7 @@ export default function AdminDashboard({ embedded = false, initialEditId = null,
     setDescription("");
     setNameEn("");
     setCategoryEn("");
+    setBrandId("");
     setHighlightsEn("");
     setDescriptionEn("");
     setContentLang("kn");
@@ -183,6 +188,7 @@ export default function AdminDashboard({ embedded = false, initialEditId = null,
     setDescription(p.description ?? "");
     setNameEn(p.name_en ?? "");
     setCategoryEn(p.category_en ?? "");
+    setBrandId(p.brand_id != null ? String(p.brand_id) : "");
     setHighlightsEn(highlightLines(p.highlights_en).join("\n"));
     setDescriptionEn(p.description_en ?? "");
     setContentLang("kn");
@@ -291,7 +297,7 @@ export default function AdminDashboard({ embedded = false, initialEditId = null,
 
       setStatus("ಪ್ರಾಡಕ್ಟ್ ಸೇವ್ ಆಗುತ್ತಿದೆ...");
       const payload = {
-        name, nameEn, price, mrp, category, categoryEn, weight, inStock,
+        name, nameEn, price, mrp, category, categoryEn, brandId, weight, inStock,
         highlights, highlightsEn, description, descriptionEn, imageUrls, videoUrl,
       };
       const { error } = editingId ? await updateProduct(editingId, payload) : await addProduct(payload);
@@ -315,7 +321,13 @@ export default function AdminDashboard({ embedded = false, initialEditId = null,
     { id: "add", icon: PlusCircle, label: editingId ? `ಎಡಿಟ್ #${editingId}` : "ಹೊಸ ಪ್ರಾಡಕ್ಟ್", sub: editingId ? "Edit" : "Add Product" },
     { id: "products", icon: Package, label: `ಪ್ರಾಡಕ್ಟ್‌ಗಳು (${products.length})`, sub: "Edit · Stock · Delete" },
     { id: "categories", icon: LayoutGrid, label: "ವರ್ಗಗಳ ಲೋಗೋ", sub: "Category logos" },
+    { id: "brands", icon: BadgeCheck, label: `ಬ್ರಾಂಡ್‌ಗಳು (${brands?.length ?? 0})`, sub: "Brands" },
   ];
+  const brandName = (id) => (brands ?? []).find((b) => b.id === id)?.name;
+  const brandCounts = products.reduce((acc, p) => {
+    if (p.brand_id != null) acc[p.brand_id] = (acc[p.brand_id] ?? 0) + 1;
+    return acc;
+  }, {});
   const q = listQuery.trim().toLowerCase();
   const listed = q
     ? products.filter((p) => [p.name, p.name_en, p.category, p.category_en].some((v) => v && String(v).toLowerCase().includes(q)))
@@ -341,10 +353,10 @@ export default function AdminDashboard({ embedded = false, initialEditId = null,
             <Settings className="w-5 h-5 text-emerald-700" /> ಅಡ್ಮಿನ್ ಕಂಟ್ರೋಲ್ಸ್
             <span className="text-xs font-normal text-slate-500">Admin Controls</span>
           </h2>
-          <p className="text-xs text-slate-600 mt-0.5">ಪ್ರಾಡಕ್ಟ್ ಸೇರಿಸುವುದು, ಎಡಿಟ್, ಸ್ಟಾಕ್, ಅಳಿಸುವುದು ಮತ್ತು ವರ್ಗಗಳ ಲೋಗೋ – ಎಲ್ಲವೂ ಇಲ್ಲೇ.</p>
+          <p className="text-xs text-slate-600 mt-0.5">ಪ್ರಾಡಕ್ಟ್ ಸೇರಿಸುವುದು, ಎಡಿಟ್, ಸ್ಟಾಕ್, ಅಳಿಸುವುದು, ವರ್ಗಗಳ ಲೋಗೋ ಮತ್ತು ಬ್ರಾಂಡ್‌ಗಳು – ಎಲ್ಲವೂ ಇಲ್ಲೇ.</p>
         </div>
 
-        <div role="tablist" aria-label="ಅಡ್ಮಿನ್ ಕಂಟ್ರೋಲ್ಸ್" className="grid grid-cols-3 border-b border-slate-200">
+        <div role="tablist" aria-label="ಅಡ್ಮಿನ್ ಕಂಟ್ರೋಲ್ಸ್" className="grid grid-cols-2 sm:grid-cols-4 border-b border-slate-200">
           {tabs.map(({ id, icon: Icon, label, sub }) => {
             const active = tab === id;
             return (
@@ -450,6 +462,25 @@ export default function AdminDashboard({ embedded = false, initialEditId = null,
                 );
               })()}
               <p style={hintStyle}>ಮುಖಪುಟದ 6 ವರ್ಗಗಳಲ್ಲಿ ಒಂದನ್ನು ಆರಿಸಿ; ಕನ್ನಡ ಮತ್ತು English ಹೆಸರು ಎರಡೂ ತಾನಾಗಿ ಸೇರುತ್ತವೆ.</p>
+            </div>
+            <div style={{ marginBottom: "12px" }}>
+              <label htmlFor="productBrand" style={labelStyle}>ಬ್ರಾಂಡ್ / Brand:</label>
+              <select id="productBrand" value={brandId} onChange={(e) => setBrandId(e.target.value)} style={inputStyle}>
+                <option value="">-- ಬ್ರಾಂಡ್ ಇಲ್ಲ / No brand --</option>
+                {(brands ?? []).map((b) => (
+                  <option key={b.id} value={String(b.id)}>
+                    {b.name}
+                  </option>
+                ))}
+                {brandId && brands && !brands.some((b) => String(b.id) === brandId) && <option value={brandId}>(ಅಳಿಸಿದ ಬ್ರಾಂಡ್ #{brandId})</option>}
+              </select>
+              <p style={hintStyle}>
+                ಪಟ್ಟಿಯಲ್ಲಿ ಇಲ್ಲವೇ?{" "}
+                <button type="button" onClick={() => setTab("brands")} className="text-emerald-700 font-semibold underline">
+                  ಹೊಸ ಬ್ರಾಂಡ್ ಸೇರಿಸಿ
+                </button>{" "}
+                (ಈ ಫಾರ್ಮ್‌ನಲ್ಲಿ ಹಾಕಿದ್ದು ಉಳಿಯುತ್ತದೆ)
+              </p>
             </div>
             <div style={{ marginBottom: "12px" }}>
               <label htmlFor="productHighlights" style={labelStyle}>{contentLang === "kn" ? "ಮುಖ್ಯಾಂಶಗಳು (ಕನ್ನಡ):" : "Key Highlights (English):"}</label>
@@ -658,6 +689,8 @@ export default function AdminDashboard({ embedded = false, initialEditId = null,
 
       {tab === "categories" && <CategoryLogosManager />}
 
+      {tab === "brands" && <BrandsManager productCounts={brandCounts} />}
+
       {tab === "products" && (
         <div className="space-y-3">
           <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
@@ -724,6 +757,7 @@ export default function AdminDashboard({ embedded = false, initialEditId = null,
                           )}
                           <span className={stock ? "text-emerald-700 font-semibold" : "text-red-600 font-semibold"}>{stock ? "In Stock" : "Out of Stock"}</span>
                           <span className={cat ? "text-slate-500" : "text-amber-700"}>{cat ? `${cat.kn} / ${cat.en}` : "ವರ್ಗ ಇಲ್ಲ"}</span>
+                          {brandName(p.brand_id) && <span className="text-slate-700 font-semibold">· {brandName(p.brand_id)}</span>}
                         </p>
                         <p className="text-[11px] text-emerald-700 mt-0.5">
                           📷 {photos.length} ಫೋಟೋ{p.video_url ? " · ▶ ವಿಡಿಯೋ" : ""} · {p.name_en ? "ಕ + EN" : "ಕ ಮಾತ್ರ"}

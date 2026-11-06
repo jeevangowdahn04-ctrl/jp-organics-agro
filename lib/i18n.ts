@@ -33,6 +33,10 @@ const kn = {
   // ವರ್ಗಗಳು
   "categories.title": "ಮುಖ್ಯ ವಿಭಾಗಗಳು",
   "cat.count": "{n} ಉತ್ಪನ್ನಗಳು",
+  "cat.brandsCount": "{n} ಬ್ರಾಂಡ್‌ಗಳು",
+  "brands.pick": "ಬ್ರಾಂಡ್ ಆಯ್ಕೆ ಮಾಡಿ",
+  "brands.empty": "ಇನ್ನೂ ಯಾವುದೇ ಬ್ರಾಂಡ್ ಸೇರಿಸಿಲ್ಲ.",
+  "brands.all": "← ಎಲ್ಲಾ ಬ್ರಾಂಡ್‌ಗಳು",
   "cat.all": "ಎಲ್ಲಾ",
   "cat.soon": "ಶೀಘ್ರದಲ್ಲೇ ಬರಲಿದೆ",
   "catAdmin.title": "ವರ್ಗಗಳ ಲೋಗೋ / ಐಕಾನ್",
@@ -376,6 +380,10 @@ const en: Record<TranslationKey, string> = {
 
   "categories.title": "Main Categories",
   "cat.count": "{n} products",
+  "cat.brandsCount": "{n} brands",
+  "brands.pick": "Choose a brand",
+  "brands.empty": "No brands added yet.",
+  "brands.all": "← All brands",
   "cat.all": "All",
   "cat.soon": "Coming soon",
   "catAdmin.title": "Category logos / icons",

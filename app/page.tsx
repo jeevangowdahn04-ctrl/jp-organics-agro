@@ -9,6 +9,7 @@ import ImageCarousel from "./components/ImageCarousel";
 import StoriesPreview from "./components/stories/StoriesPreview";
 import SiteNav from "./components/SiteNav";
 import CategoryLogo from "./components/categories/CategoryLogo";
+import { BrandLogo, useBrands } from "./components/brands/useBrands";
 import { CATEGORIES as SHOP_CATEGORIES, categoryBySlug, categoryOf, type Category, type CategorySlug } from "@/lib/categories";
 import CartButton from "./components/cart/CartButton";
 import { useCart } from "./components/cart/CartProvider";
@@ -42,6 +43,7 @@ interface Product {
   video_url?: string | null;
   name_en?: string | null;
   category_en?: string | null;
+  brand_id?: number | null;
   description_en?: string | null;
 }
 
@@ -65,6 +67,9 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [categorySlug, setCategorySlug] = useState<CategorySlug | null>(null);
+  // "ಬ್ರಾಂಡ್‌ಗಳು" ವರ್ಗದಲ್ಲಿ ಒಂದು ಬ್ರಾಂಡ್ ಆರಿಸಿದಾಗ ಅದರ id
+  const [brandFilter, setBrandFilter] = useState<number | null>(null);
+  const brands = useBrands();
   const { addItem } = useCart();
   const { requireLogin } = useCustomer();
   const { t, lang } = useLanguage();
@@ -99,10 +104,19 @@ export default function Home() {
     const q = query.trim().toLowerCase();
     return products.filter((p) => {
       if (q && !searchableText(p).includes(q)) return false;
+      if (brandFilter != null) return p.brand_id === brandFilter;
       if (categorySlug && categoryOf(p)?.slug !== categorySlug) return false;
       return true;
     });
-  }, [products, query, categorySlug]);
+  }, [products, query, categorySlug, brandFilter]);
+  // ಪ್ರತಿ ಬ್ರಾಂಡ್‌ನ ಉತ್ಪನ್ನ ಸಂಖ್ಯೆ
+  const brandCounts = useMemo(() => {
+    const counts: Record<number, number> = {};
+    for (const p of products) if (p.brand_id != null) counts[p.brand_id] = (counts[p.brand_id] ?? 0) + 1;
+    return counts;
+  }, [products]);
+  const selectedBrand = brandFilter != null ? (brands ?? []).find((b) => b.id === brandFilter) ?? null : null;
+  const showBrandGrid = categorySlug === "brands" && brandFilter == null && !query.trim();
   // ಪ್ರತಿ ವರ್ಗದಲ್ಲಿ ಎಷ್ಟು ಉತ್ಪನ್ನಗಳಿವೆ (ನಿಜವಾದ ಸಂಖ್ಯೆ)
   const categoryCounts = useMemo(() => {
     const counts: Partial<Record<CategorySlug, number>> = {};
@@ -114,15 +128,17 @@ export default function Home() {
   }, [products]);
   const catName = (c: Category) => (lang === "en" ? c.en : c.kn);
   const selectedCategory = categoryBySlug(categorySlug);
-  const activeFilter = selectedCategory ? catName(selectedCategory) : query;
+  const activeFilter = selectedBrand ? selectedBrand.name : selectedCategory ? catName(selectedCategory) : query;
   const pickCategory = (slug: CategorySlug | null) => {
     setQuery("");
     setCategorySlug(slug);
+    setBrandFilter(null);
     document.getElementById("products")?.scrollIntoView({ behavior: "smooth" });
   };
   const clearFilter = () => {
     setQuery("");
     setCategorySlug(null);
+    setBrandFilter(null);
   };
 
   const addToCart = (product: Product) =>
@@ -147,6 +163,7 @@ export default function Home() {
         onChange={(e) => {
           setQuery(e.target.value);
           setCategorySlug(null);
+          setBrandFilter(null);
         }}
         onKeyDown={(e) => e.key === "Enter" && document.getElementById("products")?.scrollIntoView({ behavior: "smooth" })}
         placeholder={t("header.search")}
@@ -265,7 +282,7 @@ export default function Home() {
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
           {SHOP_CATEGORIES.map((cat) => {
-            const count = categoryCounts[cat.slug] ?? 0;
+            const count = cat.slug === "brands" ? brands?.length ?? 0 : categoryCounts[cat.slug] ?? 0;
             const active = categorySlug === cat.slug;
             return (
               <button
@@ -279,7 +296,7 @@ export default function Home() {
               >
                 <CategoryLogo slug={cat.slug} name={catName(cat)} className="w-16 h-16 md:w-20 md:h-20 group-hover:scale-105 transition" iconClassName="w-8 h-8" />
                 <h4 className="font-bold text-sm text-slate-800 leading-snug line-clamp-2 min-h-[2.5em] flex items-center">{catName(cat)}</h4>
-                <p className="text-xs text-slate-500">{count > 0 ? t("cat.count", { n: count }) : t("cat.soon")}</p>
+                <p className="text-xs text-slate-500">{count > 0 ? t(cat.slug === "brands" ? "cat.brandsCount" : "cat.count", { n: count }) : t("cat.soon")}</p>
               </button>
             );
           })}
@@ -309,7 +326,10 @@ export default function Home() {
         >
           <button
             type="button"
-            onClick={() => setCategorySlug(null)}
+            onClick={() => {
+              setCategorySlug(null);
+              setBrandFilter(null);
+            }}
             aria-pressed={!categorySlug}
             className={`flex-none rounded-full border px-4 py-1.5 text-sm font-semibold transition ${
               !categorySlug ? "bg-emerald-700 border-emerald-700 text-white" : "bg-white border-slate-200 text-slate-700 hover:border-emerald-500"
@@ -319,7 +339,7 @@ export default function Home() {
           </button>
           {SHOP_CATEGORIES.map((cat) => {
             const active = categorySlug === cat.slug;
-            const count = categoryCounts[cat.slug] ?? 0;
+            const count = cat.slug === "brands" ? brands?.length ?? 0 : categoryCounts[cat.slug] ?? 0;
             return (
               <button
                 key={cat.slug}
@@ -327,6 +347,7 @@ export default function Home() {
                 onClick={() => {
                   setQuery("");
                   setCategorySlug(active ? null : cat.slug);
+                  setBrandFilter(null);
                 }}
                 aria-pressed={active}
                 className={`flex-none flex items-center gap-2 rounded-full border pl-1 pr-3 py-1 text-sm font-semibold whitespace-nowrap transition ${
@@ -341,7 +362,55 @@ export default function Home() {
           })}
         </div>
 
-        {loading ? (
+        {/* ಬ್ರಾಂಡ್‌ಗಳು: ಲೋಗೋ ಸಹಿತ ಎಲ್ಲಾ ಬ್ರಾಂಡ್‌ಗಳು; ಒಂದನ್ನು ಆರಿಸಿದರೆ ಅದರ ಉತ್ಪನ್ನಗಳು ಮಾತ್ರ */}
+        {showBrandGrid && (
+          <div className="mb-6">
+            <p className="text-sm font-bold text-slate-700 mb-3">{t("brands.pick")}</p>
+            {brands === null ? (
+              <div className="flex justify-center py-10 text-emerald-700">
+                <Loader2 className="w-6 h-6 animate-spin" />
+              </div>
+            ) : brands.length === 0 ? (
+              <div className="text-center py-10 bg-white rounded-xl border border-dashed border-slate-300 text-slate-500 text-sm">{t("brands.empty")}</div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
+                {brands.map((b) => {
+                  const n = brandCounts[b.id] ?? 0;
+                  return (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={() => {
+                        setBrandFilter(b.id);
+                        document.getElementById("products")?.scrollIntoView({ behavior: "smooth" });
+                      }}
+                      className="group bg-white rounded-2xl border border-slate-200 hover:border-emerald-500 hover:shadow-md p-3 sm:p-4 flex flex-col items-center text-center gap-2 min-w-0 transition"
+                    >
+                      <BrandLogo brand={b} className="w-20 h-20 md:w-24 md:h-24 text-lg group-hover:scale-105 transition" />
+                      <span className="font-bold text-sm text-slate-800 leading-snug line-clamp-2 break-words max-w-full">{b.name}</span>
+                      <span className="text-xs text-slate-500">{n > 0 ? t("cat.count", { n }) : t("cat.soon")}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {selectedBrand && (
+          <div className="mb-6 flex items-center gap-3 bg-white border border-slate-200 rounded-2xl p-3 sm:p-4">
+            <BrandLogo brand={selectedBrand} className="w-14 h-14 sm:w-16 sm:h-16 text-sm" />
+            <div className="min-w-0 flex-1">
+              <p className="font-bold text-slate-900 truncate">{selectedBrand.name}</p>
+              <p className="text-xs text-slate-500">{t("cat.count", { n: brandCounts[selectedBrand.id] ?? 0 })}</p>
+            </div>
+            <button type="button" onClick={() => setBrandFilter(null)} className="flex-none text-sm font-semibold text-emerald-700 hover:underline">
+              {t("brands.all")}
+            </button>
+          </div>
+        )}
+
+        {showBrandGrid ? null : loading ? (
           <div className="flex items-center justify-center py-12 text-emerald-700 font-semibold gap-2">
             <Loader2 className="w-6 h-6 animate-spin" /> {t("products.loading")}
           </div>
@@ -408,7 +477,9 @@ export default function Home() {
                     <span className="text-[11px] font-semibold text-emerald-600 uppercase">
                       {(() => {
                         const c = categoryOf(item);
-                        return c ? catName(c) : text.category || t("products.defaultCategory");
+                        const label = c ? catName(c) : text.category || t("products.defaultCategory");
+                        const b = item.brand_id != null ? brands?.find((x) => x.id === item.brand_id) : null;
+                        return b ? `${label} · ${b.name}` : label;
                       })()}
                     </span>
                     <h4 className="font-bold text-sm text-slate-900 mt-1 line-clamp-2">

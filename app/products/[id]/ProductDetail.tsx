@@ -18,6 +18,7 @@ import { useCustomer } from "../../components/customer/CustomerProvider";
 import ProfileButton from "../../components/customer/ProfileButton";
 import LanguageSwitcher from "../../components/i18n/LanguageSwitcher";
 import { useLanguage } from "../../components/i18n/LanguageProvider";
+import { useBrands } from "../../components/brands/useBrands";
 
 interface Product {
   id: number | string;
@@ -33,6 +34,7 @@ interface Product {
   highlights?: string | null;
   name_en?: string | null;
   category_en?: string | null;
+  brand_id?: number | null;
   description_en?: string | null;
   highlights_en?: unknown;
   image_url?: string | null;
@@ -55,6 +57,7 @@ async function loadProduct(id: string): Promise<LoadState> {
   return { status: "ready", product: data, related };
 }
 
+// ಬ್ರಾಂಡ್ ಆಯ್ಕೆ ಮಾಡದ ಪ್ರಾಡಕ್ಟ್‌ಗಳಿಗೆ ತೋರಿಸುವ ಬ್ರಾಂಡ್
 const BRAND = "JP Organics";
 
 function Stars({ rating, label }: { rating: number; label: string }) {
@@ -74,6 +77,7 @@ function Stars({ rating, label }: { rating: number; label: string }) {
 const discountOf = (p: Product) => discountPercent(p.price, p.mrp);
 
 export default function ProductDetail({ id }: { id: string }) {
+  const brands = useBrands();
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [quantity, setQuantity] = useState(1);
   const { addItem } = useCart();
@@ -185,7 +189,7 @@ export default function ProductDetail({ id }: { id: string }) {
           <h1 className="text-xl md:text-2xl font-bold leading-snug">{text.name}</h1>
           <div className="flex items-center gap-3 flex-wrap -mt-2 text-sm">
             <span className="text-slate-500">
-              {t("detail.brand")}: <span className="font-semibold text-slate-800">{BRAND}</span>
+              {t("detail.brand")}: <span className="font-semibold text-slate-800">{(product.brand_id != null && brands?.find((b) => b.id === product.brand_id)?.name) || BRAND}</span>
             </span>
             {product.weight && <span className="text-slate-500">· {t("product.packing")}: {product.weight}</span>}
             {product.rating ? (
@@ -307,7 +311,7 @@ export default function ProductDetail({ id }: { id: string }) {
             <table className="w-full text-sm">
               <tbody className="divide-y divide-slate-100">
                 {[
-                  [t("detail.brand"), BRAND],
+                  [t("detail.brand"), (product.brand_id != null && brands?.find((b) => b.id === product.brand_id)?.name) || BRAND],
                   [t("detail.row.name"), text.name],
                   [t("detail.row.category"), text.category || t("products.defaultCategory")],
                   [t("detail.row.packing"), product.weight],

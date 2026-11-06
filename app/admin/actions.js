@@ -108,7 +108,7 @@ const NO_SERVICE_KEY = { error: "ಸರ್ವರ್‌ನಲ್ಲಿ SUPABASE_S
 const cleanText = (value, max = 5000) => (typeof value === "string" ? value.trim().slice(0, max) : "");
 
 function buildProductRow({
-  name, nameEn, price, mrp, category, categoryEn, weight, description, descriptionEn, highlights, highlightsEn, inStock, imageUrls, videoUrl,
+  name, nameEn, price, mrp, category, categoryEn, weight, description, descriptionEn, highlights, highlightsEn, inStock, imageUrls, videoUrl, brandId,
 }) {
   // ಕನ್ನಡ ಹೆಸರು ಅಥವಾ English ಹೆಸರು, ಕನಿಷ್ಠ ಒಂದು ಬೇಕು (name ಕಾಲಂ ಖಾಲಿ ಇರಬಾರದು, ಹಾಗಾಗಿ ಕನ್ನಡ ಇಲ್ಲದಿದ್ದರೆ English ಹೆಸರೇ ಅಲ್ಲಿ)
   const cleanNameEn = cleanText(nameEn, 200);
@@ -141,9 +141,16 @@ function buildProductRow({
     return { error: "ವಿಡಿಯೋ: ಸರಿಯಾದ YouTube ಲಿಂಕ್ ಹಾಕಿ ಅಥವಾ ವಿಡಿಯೋ ಫೈಲ್ ಅಪ್‌ಲೋಡ್ ಮಾಡಿ." };
   }
 
+  // ಬ್ರಾಂಡ್ (ಐಚ್ಛಿಕ): ಬ್ರಾಂಡ್ ಪಟ್ಟಿಯ id ಅಥವಾ ಖಾಲಿ
+  const cleanBrand = brandId === "" || brandId === null || brandId === undefined ? null : Number(brandId);
+  if (cleanBrand !== null && (!Number.isInteger(cleanBrand) || cleanBrand <= 0)) {
+    return { error: "ಬ್ರಾಂಡ್ ಸರಿಯಿಲ್ಲ." };
+  }
+
   return {
     row: {
       name: cleanName,
+      brand_id: cleanBrand,
       name_en: cleanNameEn || null,
       price: cleanPrice,
       mrp: cleanMrp,
@@ -164,8 +171,9 @@ function buildProductRow({
 }
 
 function dbError(error) {
+  if (error.code === "23503") return { error: "ಆಯ್ಕೆ ಮಾಡಿದ ಬ್ರಾಂಡ್ ಇನ್ನು ಇಲ್ಲ. ಪಟ್ಟಿಯನ್ನು ರಿಫ್ರೆಶ್ ಮಾಡಿ." };
   if (error.code === "42703" || error.code === "PGRST204") {
-    return { error: "ಡೇಟಾಬೇಸ್‌ನಲ್ಲಿ ಬೇಕಾದ ಕಾಲಂ ಇಲ್ಲ (name_en / category_en / description_en / highlights_en). supabase/product-bilingual.sql ರನ್ ಮಾಡಿ." };
+    return { error: "ಡೇಟಾಬೇಸ್‌ನಲ್ಲಿ ಬೇಕಾದ ಕಾಲಂ ಇಲ್ಲ (brand_id ಅಥವಾ *_en). supabase/brands.sql ಮತ್ತು product-bilingual.sql ರನ್ ಮಾಡಿ." };
   }
   return { error: error.message };
 }
