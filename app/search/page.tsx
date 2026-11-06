@@ -75,7 +75,7 @@ export default function SearchPage() {
   }, [products, term]);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 pb-24 md:pb-8">
+    <div className="min-h-screen bg-slate-50 text-slate-900 pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-8">
       <PageHeader title={t("community.searchTitle")} />
       <main className="max-w-3xl lg:max-w-6xl xl:max-w-7xl mx-auto px-4 py-4 space-y-5">
         <div className="relative sticky top-14 md:top-28 z-10 max-w-3xl">

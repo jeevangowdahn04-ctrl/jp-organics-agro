@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useSyncExternalStore } from "react";
+import React, { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Clapperboard, Home, LayoutGrid, Package, Search, User } from "lucide-react";
@@ -23,6 +23,36 @@ export default function BottomNav() {
   // ಸರ್ವರ್ HTML ಜೊತೆ ಹೊಂದಲು hydration ಮುಗಿದ ನಂತರವೇ ಗ್ರಾಹಕರ ಮೊದಲಕ್ಷರ ತೋರಿಸುವುದು.
   const hydrated = useSyncExternalStore(noopSubscribe, () => true, () => false);
   const profileInitial = hydrated && customer ? customer.name.charAt(0).toUpperCase() : null;
+
+  // ಕೆಳಕ್ಕೆ ಸ್ಕ್ರೋಲ್ ಮಾಡುವಾಗ ಬಾರ್ ಮರೆಯಾಗುತ್ತದೆ, ಮೇಲಕ್ಕೆ ಸ್ಕ್ರೋಲ್ ಮಾಡಿದಾಗ ಮತ್ತೆ ಬರುತ್ತದೆ.
+  // ಫ್ಲಿಕ್ಕರ್ ಆಗದಂತೆ: ಕನಿಷ್ಠ 10px ಚಲನೆ ಆದಾಗ ಮಾತ್ರ ಬದಲಾವಣೆ, ಪ್ರತಿ ಫ್ರೇಮ್‌ಗೆ ಒಮ್ಮೆ ಮಾತ್ರ ಲೆಕ್ಕ.
+  // ಪುಟದ ಮೇಲ್ಭಾಗ ಮತ್ತು ಕೊನೆಯಲ್ಲಿ ಯಾವಾಗಲೂ ಕಾಣಿಸುತ್ತದೆ. ಪುಟ ಬದಲಾದಾಗ ಮತ್ತೆ ಕಾಣಿಸುತ್ತದೆ (path ಹೋಲಿಕೆ).
+  const [scrollHide, setScrollHide] = useState<{ hidden: boolean; path: string }>({ hidden: false, path: "" });
+  useEffect(() => {
+    let lastY = window.scrollY;
+    let ticking = false;
+    const update = () => {
+      ticking = false;
+      const y = Math.max(0, window.scrollY);
+      const dy = y - lastY;
+      if (Math.abs(dy) < 10) return; // ಸಣ್ಣ ಅಲುಗಾಟ ಕಡೆಗಣಿಸುವುದು
+      lastY = y;
+      const nearTop = y < 80;
+      const atBottom = window.innerHeight + y >= document.documentElement.scrollHeight - 8;
+      const hide = dy > 0 && !nearTop && !atBottom;
+      const path = window.location.pathname;
+      setScrollHide((s) => (s.hidden === hide && s.path === path ? s : { hidden: hide, path }));
+    };
+    const onScroll = () => {
+      if (!ticking) {
+        ticking = true;
+        requestAnimationFrame(update);
+      }
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+  const hiddenByScroll = scrollHide.hidden && scrollHide.path === pathname;
 
   if (pathname.startsWith("/products/") || pathname.startsWith("/admin")) return null;
 
@@ -62,7 +92,10 @@ export default function BottomNav() {
   return (
     <nav
       aria-label={t("nav.main")}
-      className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur border-t shadow-[0_-2px_10px_rgba(0,0,0,0.06)] grid grid-cols-6 pb-[env(safe-area-inset-bottom)]"
+      data-hidden={hiddenByScroll || undefined}
+      className={`md:hidden fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur border-t shadow-[0_-2px_10px_rgba(0,0,0,0.06)] grid grid-cols-6 pb-[env(safe-area-inset-bottom)] transition-transform duration-300 ease-out will-change-transform motion-reduce:transition-none focus-within:translate-y-0 ${
+        hiddenByScroll ? "translate-y-full" : "translate-y-0"
+      }`}
     >
       <Link href="/" onClick={goHome} aria-current={active === "home" ? "page" : undefined} className={item("home")}>
         {indicator("home")}

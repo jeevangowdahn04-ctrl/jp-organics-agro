@@ -175,7 +175,7 @@ export default function Home() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans relative pb-16 md:pb-0">
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans relative pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-0">
       {/* Top Banner */}
       <div className="bg-emerald-900 text-white text-xs py-2 px-4">
         <div className="max-w-6xl xl:max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-2">

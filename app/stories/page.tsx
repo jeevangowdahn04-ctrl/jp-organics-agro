@@ -239,7 +239,7 @@ export default function StoriesPage() {
     ) : null;
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 pb-24 md:pb-8">
+    <div className="min-h-screen bg-slate-50 text-slate-900 pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-8">
       <PageHeader title={t("stories.title")} />
 
       <main className="max-w-5xl mx-auto px-4 py-5 space-y-5">
