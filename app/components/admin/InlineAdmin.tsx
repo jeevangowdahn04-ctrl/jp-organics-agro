@@ -60,7 +60,9 @@ export function useAdminMode() {
 }
 
 export type AdminTab = "add" | "products" | "categories" | "brands";
-type PanelState = { open: false } | { open: true; editId: number | string | null; tab: AdminTab; brandId?: number | null; key: number };
+type PanelState =
+  | { open: false }
+  | { open: true; editId: number | string | null; tab: AdminTab; brandId?: number | null; categorySlug?: string | null; key: number };
 
 export function useAdminPanel() {
   const [panel, setPanel] = useState<PanelState>({ open: false });
@@ -71,6 +73,8 @@ export function useAdminPanel() {
     openEdit: (id: number | string) => setPanel({ open: true, editId: id, tab: "add", key: Date.now() }),
     // ಹೊಸ ಪ್ರಾಡಕ್ಟ್ ಫಾರ್ಮ್, ಈ ಬ್ರಾಂಡ್ ಮೊದಲೇ ಆಯ್ಕೆಯಾಗಿ
     openAddForBrand: (brandId: number) => setPanel({ open: true, editId: null, tab: "add", brandId, key: Date.now() }),
+    // ಹೊಸ ಪ್ರಾಡಕ್ಟ್ ಫಾರ್ಮ್, ಈ ವರ್ಗ (ಉದಾ: ಬೀಜಗಳು) ಮೊದಲೇ ಆಯ್ಕೆಯಾಗಿ
+    openAddForCategory: (categorySlug: string) => setPanel({ open: true, editId: null, tab: "add", categorySlug, key: Date.now() }),
     close: () => setPanel({ open: false }),
   };
 }
@@ -201,12 +205,14 @@ export function AdminPanel({
   editId,
   tab = "add",
   brandId = null,
+  categorySlug = null,
   onClose,
   onProductsChanged,
 }: {
   editId: number | string | null;
   tab?: AdminTab;
   brandId?: number | null;
+  categorySlug?: string | null;
   onClose: () => void;
   onProductsChanged: () => void;
 }) {
@@ -235,7 +241,7 @@ export function AdminPanel({
           </div>
         </div>
       </div>
-      <AdminDashboard embedded initialEditId={editId} initialTab={tab} initialBrandId={brandId} onProductsChanged={onProductsChanged} />
+      <AdminDashboard embedded initialEditId={editId} initialTab={tab} initialBrandId={brandId} initialCategory={categorySlug} onProductsChanged={onProductsChanged} />
     </div>
   );
 }

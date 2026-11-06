@@ -52,9 +52,11 @@ const releasePreview = (img) => img.file && URL.revokeObjectURL(img.preview);
 // embedded: ಮುಖಪುಟದ ಇನ್‌ಲೈನ್ ಅಡ್ಮಿನ್ ಪ್ಯಾನೆಲ್ ಒಳಗೆ (ಸ್ವಂತ ಹೆಡರ್/ಲಾಗ್‌ಔಟ್ ಇಲ್ಲ)
 // initialEditId: ತೆರೆದ ತಕ್ಷಣ ಈ ಪ್ರಾಡಕ್ಟ್ ಎಡಿಟ್ ಮೋಡ್‌ನಲ್ಲಿ; onProductsChanged: ಸೇರಿಸು/ಎಡಿಟ್/ಅಳಿಸು ನಂತರ ತಿಳಿಸುವುದು
 // initialTab: "add" (ಹೊಸ ಪ್ರಾಡಕ್ಟ್ / ಎಡಿಟ್ ಫಾರ್ಮ್) | "products" (ಪಟ್ಟಿ: ಎಡಿಟ್, ಸ್ಟಾಕ್, ಅಳಿಸಿ) | "categories" (ವರ್ಗಗಳ ಲೋಗೋ) | "brands" (ಬ್ರಾಂಡ್‌ಗಳು)
-/** @param {{ embedded?: boolean, initialEditId?: string | number | null, initialTab?: "add" | "products" | "categories" | "brands", initialBrandId?: number | null, onProductsChanged?: () => void }} [props] */
+/** @param {{ embedded?: boolean, initialEditId?: string | number | null, initialTab?: "add" | "products" | "categories" | "brands", initialBrandId?: number | null, initialCategory?: string | null, onProductsChanged?: () => void }} [props] */
 // initialBrandId: "ಈ ಬ್ರಾಂಡ್‌ಗೆ ಹೊಸ ಪ್ರಾಡಕ್ಟ್" ಬಟನ್‌ನಿಂದ ಬಂದಾಗ ಫಾರ್ಮ್‌ನಲ್ಲಿ ಆ ಬ್ರಾಂಡ್ ಮೊದಲೇ ಆಯ್ಕೆ
-export default function AdminDashboard({ embedded = false, initialEditId = null, initialTab = "add", initialBrandId = null, onProductsChanged } = {}) {
+export default function AdminDashboard({ embedded = false, initialEditId = null, initialTab = "add", initialBrandId = null, initialCategory = null, onProductsChanged } = {}) {
+  // "+ ಈ ವರ್ಗಕ್ಕೆ ಹೊಸ ಪ್ರಾಡಕ್ಟ್" ಬಟನ್‌ನಿಂದ ಬಂದಾಗ ಆ ವರ್ಗ ಮೊದಲೇ ಆಯ್ಕೆ
+  const startCategory = CATEGORIES.find((c) => c.slug === initialCategory) ?? null;
   const [tab, setTab] = useState(initialEditId != null ? "add" : initialTab);
   const [listQuery, setListQuery] = useState("");
   const [stockBusyId, setStockBusyId] = useState(null);
@@ -65,13 +67,13 @@ export default function AdminDashboard({ embedded = false, initialEditId = null,
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [mrp, setMrp] = useState("");
-  const [category, setCategory] = useState("");
+  const [category, setCategory] = useState(startCategory?.kn ?? "");
   const [weight, setWeight] = useState("");
   const [inStock, setInStock] = useState(true);
   const [highlights, setHighlights] = useState("");
   const [description, setDescription] = useState("");
   const [nameEn, setNameEn] = useState("");
-  const [categoryEn, setCategoryEn] = useState("");
+  const [categoryEn, setCategoryEn] = useState(startCategory?.en ?? "");
   const [highlightsEn, setHighlightsEn] = useState("");
   const [descriptionEn, setDescriptionEn] = useState("");
   const [contentLang, setContentLang] = useState("kn");

@@ -401,6 +401,16 @@ export default function Home() {
             </button>
           </div>
         )}
+        {/* ಅಡ್ಮಿನ್‌ಗೆ ಮಾತ್ರ: ತೆರೆದಿರುವ ವರ್ಗಕ್ಕೆ (ಉದಾ: ಬೀಜಗಳು) ನೇರವಾಗಿ ಹೊಸ ಪ್ರಾಡಕ್ಟ್; ಗ್ರಾಹಕರಿಗೆ ಕಾಣಿಸುವುದಿಲ್ಲ */}
+        {isAdmin && selectedCategory && selectedCategory.slug !== "brands" && brandFilter == null && (
+          <button
+            type="button"
+            onClick={() => adminPanel.openAddForCategory(selectedCategory.slug)}
+            className="-mt-2 mb-6 w-full sm:w-auto flex items-center justify-center gap-2 bg-amber-50 border border-amber-300 text-amber-900 hover:bg-amber-100 font-semibold text-sm px-4 py-2.5 rounded-xl"
+          >
+            <Plus className="w-4 h-4" /> ಈ ವರ್ಗಕ್ಕೆ ಹೊಸ ಪ್ರಾಡಕ್ಟ್ ಸೇರಿಸಿ ({catName(selectedCategory)})
+          </button>
+        )}
         {/* ಅಡ್ಮಿನ್‌ಗೆ ಮಾತ್ರ: ತೆರೆದಿರುವ ಬ್ರಾಂಡ್‌ಗೆ ನೇರವಾಗಿ ಹೊಸ ಪ್ರಾಡಕ್ಟ್ */}
         {selectedBrand && isAdmin && (
           <button
@@ -587,6 +597,7 @@ export default function Home() {
           editId={adminPanel.panel.editId}
           tab={adminPanel.panel.tab}
           brandId={adminPanel.panel.brandId ?? null}
+          categorySlug={adminPanel.panel.categorySlug ?? null}
           onClose={adminPanel.close}
           onProductsChanged={fetchProducts}
         />
