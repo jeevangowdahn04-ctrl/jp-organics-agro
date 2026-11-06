@@ -19,19 +19,32 @@ export function setAdminMode(value: boolean) {
   adminListeners.forEach((l) => l());
 }
 
+// ಸರ್ವರ್‌ನಲ್ಲಿ ಅಡ್ಮಿನ್ ಸೆಷನ್ (ಕುಕೀ) ನಿಜವಾಗಿ ಇದೆಯೇ ಎಂದು ಕೇಳುವುದು
+let lastCheck = 0;
+function checkAdmin() {
+  if (checking) return;
+  checking = true;
+  lastCheck = Date.now();
+  adminStatus()
+    .then((r) => setAdminMode(Boolean(r?.isAdmin)))
+    .catch(() => {})
+    .finally(() => {
+      checking = false;
+    });
+}
+
+// ಪುಟಕ್ಕೆ ಮರಳಿದಾಗ (ಬೇರೆ ಟ್ಯಾಬ್/ಆ್ಯಪ್‌ನಿಂದ) ಮತ್ತೆ ಪರಿಶೀಲನೆ: ಅಲ್ಲಿ Exit ಆಗಿದ್ದರೆ ಇಲ್ಲಿನ ಕಂಟ್ರೋಲ್‌ಗಳೂ ಮರೆಯಾಗುತ್ತವೆ
+function onVisible() {
+  if (document.visibilityState === "visible" && Date.now() - lastCheck > 15_000) checkAdmin();
+}
+
 function subscribeAdmin(listener: () => void) {
   adminListeners.add(listener);
-  if (adminState === null && !checking) {
-    checking = true;
-    adminStatus()
-      .then((r) => setAdminMode(Boolean(r?.isAdmin)))
-      .catch(() => {})
-      .finally(() => {
-        checking = false;
-      });
-  }
+  if (adminListeners.size === 1) document.addEventListener("visibilitychange", onVisible);
+  if (adminState === null) checkAdmin();
   return () => {
     adminListeners.delete(listener);
+    if (adminListeners.size === 0) document.removeEventListener("visibilitychange", onVisible);
   };
 }
 
