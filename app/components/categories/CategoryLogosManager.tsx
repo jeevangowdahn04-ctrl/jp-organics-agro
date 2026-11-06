@@ -148,7 +148,7 @@ function Row({ cat }: { cat: Category }) {
 export default function CategoryLogosManager() {
   const { t } = useLanguage();
   return (
-    <section id="category-logos" className="bg-emerald-50/60 border border-emerald-200 rounded-2xl p-3 sm:p-4 my-5 font-sans">
+    <section id="category-logos" className="bg-emerald-50/60 border border-emerald-200 rounded-2xl p-3 sm:p-4 font-sans scroll-mt-20">
       <h3 className="font-bold text-slate-800 text-base">{t("catAdmin.title")}</h3>
       <p className="text-xs text-slate-600 mt-1 mb-3">{t("catAdmin.hint")}</p>
       <ul className="space-y-2">

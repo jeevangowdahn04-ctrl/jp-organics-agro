@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { ExternalLink, LogOut, Pencil, Plus, Settings, Trash2, X } from "lucide-react";
+import { ExternalLink, LayoutGrid, LogOut, Package, Pencil, Plus, Settings, Trash2, X } from "lucide-react";
 import AdminDashboard from "../../admin/AdminDashboard";
 import { adminLogoutInline, adminStatus, deleteProduct, setProductStock } from "../../admin/actions";
 
@@ -40,42 +40,51 @@ export function useAdminMode() {
   return [isAdmin, setAdminMode] as const;
 }
 
-type PanelState = { open: false } | { open: true; editId: number | string | null; key: number };
+export type AdminTab = "add" | "products" | "categories";
+type PanelState = { open: false } | { open: true; editId: number | string | null; tab: AdminTab; key: number };
 
 export function useAdminPanel() {
   const [panel, setPanel] = useState<PanelState>({ open: false });
   return {
     panel,
-    openAdd: () => setPanel({ open: true, editId: null, key: Date.now() }),
-    openEdit: (id: number | string) => setPanel({ open: true, editId: id, key: Date.now() }),
+    openTab: (tab: AdminTab) => setPanel({ open: true, editId: null, tab, key: Date.now() }),
+    openAdd: () => setPanel({ open: true, editId: null, tab: "add", key: Date.now() }),
+    openEdit: (id: number | string) => setPanel({ open: true, editId: id, tab: "add", key: Date.now() }),
     close: () => setPanel({ open: false }),
   };
 }
 
-export function AdminBar({ onAdd, onOpenPanel, onLoggedOut }: { onAdd: () => void; onOpenPanel: () => void; onLoggedOut: () => void }) {
+// ಮುಖಪುಟದ ಮೇಲಿನ "ಅಡ್ಮಿನ್ ಕಂಟ್ರೋಲ್ಸ್" ಪಟ್ಟಿ: ಎಲ್ಲಾ ನಿರ್ವಹಣಾ ಬಟನ್‌ಗಳು ಒಂದೇ ಗುಂಪಿನಲ್ಲಿ
+export function AdminBar({ onOpen, onLoggedOut }: { onOpen: (tab: AdminTab) => void; onLoggedOut: () => void }) {
   const [busy, setBusy] = useState(false);
+  const actions: { tab: AdminTab; icon: React.ComponentType<{ className?: string }>; label: string; primary?: boolean }[] = [
+    { tab: "add", icon: Plus, label: "ಹೊಸ ಪ್ರಾಡಕ್ಟ್", primary: true },
+    { tab: "products", icon: Package, label: "ಪ್ರಾಡಕ್ಟ್‌ಗಳು" },
+    { tab: "categories", icon: LayoutGrid, label: "ವರ್ಗಗಳ ಲೋಗೋ" },
+  ];
   return (
     <div className="bg-amber-50 border-b border-amber-200 text-amber-900">
-      <div className="max-w-6xl mx-auto px-4 py-2 flex flex-wrap items-center gap-2 justify-between text-sm">
-        <p className="flex items-center gap-1.5 font-semibold">
-          <Settings className="w-4 h-4" /> ಅಡ್ಮಿನ್ ಮೋಡ್
-          <span className="font-normal text-amber-700 hidden sm:inline">— ಈ ಕಂಟ್ರೋಲ್‌ಗಳು ಗ್ರಾಹಕರಿಗೆ ಕಾಣಿಸುವುದಿಲ್ಲ</span>
+      <div className="max-w-6xl xl:max-w-7xl mx-auto px-4 py-2 flex flex-wrap items-center gap-2 text-sm">
+        <p className="flex-1 min-w-0 flex items-center gap-1.5 font-semibold">
+          <Settings className="w-4 h-4" /> ಅಡ್ಮಿನ್ ಕಂಟ್ರೋಲ್ಸ್
+          <span className="font-normal text-amber-700 hidden sm:inline">— ಗ್ರಾಹಕರಿಗೆ ಕಾಣಿಸುವುದಿಲ್ಲ</span>
         </p>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={onAdd}
-            className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-1.5 rounded-full text-xs"
-          >
-            <Plus className="w-4 h-4" /> ಹೊಸ ಪ್ರಾಡಕ್ಟ್
-          </button>
-          <button
-            type="button"
-            onClick={onOpenPanel}
-            className="flex items-center gap-1 bg-white border border-amber-300 hover:bg-amber-100 font-semibold px-3 py-1.5 rounded-full text-xs"
-          >
-            <Settings className="w-4 h-4" /> ಪೂರ್ಣ ಅಡ್ಮಿನ್ ಪ್ಯಾನೆಲ್
-          </button>
+        {/* ಮೊಬೈಲ್: ಶೀರ್ಷಿಕೆ + Exit ಒಂದು ಸಾಲು, 3 ಬಟನ್‌ಗಳು ಕೆಳಗೆ ಪೂರ್ಣ ಅಗಲ; ದೊಡ್ಡ ಸ್ಕ್ರೀನ್: ಎಲ್ಲವೂ ಒಂದೇ ಸಾಲು */}
+        <div className="contents">
+          <div role="group" aria-label="ಅಡ್ಮಿನ್ ಕಂಟ್ರೋಲ್ಸ್" className="order-3 md:order-2 w-full md:w-auto grid grid-cols-3 rounded-xl md:rounded-full border border-amber-300 bg-white overflow-hidden divide-x divide-amber-200">
+            {actions.map(({ tab, icon: Icon, label, primary }) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => onOpen(tab)}
+                className={`flex flex-col md:flex-row items-center justify-center gap-0.5 md:gap-1 px-1.5 md:px-3 py-1.5 text-[11px] md:text-xs leading-tight text-center font-semibold md:whitespace-nowrap transition ${
+                  primary ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "hover:bg-amber-100"
+                }`}
+              >
+                <Icon className="w-4 h-4 flex-none" /> {label}
+              </button>
+            ))}
+          </div>
           <button
             type="button"
             disabled={busy}
@@ -85,9 +94,11 @@ export function AdminBar({ onAdd, onOpenPanel, onLoggedOut }: { onAdd: () => voi
               setBusy(false);
               onLoggedOut();
             }}
-            className="flex items-center gap-1 text-red-700 hover:bg-red-50 font-semibold px-3 py-1.5 rounded-full text-xs"
+            title="Exit Admin"
+            className="order-2 md:order-3 flex-none flex items-center gap-1 border border-red-200 bg-white text-red-700 hover:bg-red-50 font-semibold px-3 py-1.5 rounded-full text-[11px] sm:text-xs disabled:opacity-60"
           >
-            <LogOut className="w-4 h-4" /> ಅಡ್ಮಿನ್‌ನಿಂದ ನಿರ್ಗಮಿಸಿ (Exit Admin)
+            <LogOut className="w-4 h-4" /> <span className="hidden sm:inline">ನಿರ್ಗಮಿಸಿ (Exit Admin)</span>
+            <span className="sm:hidden">Exit</span>
           </button>
         </div>
       </div>
@@ -166,10 +177,12 @@ export function CardAdminControls({
 // /admin ನ ಅದೇ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್, ಮುಖಪುಟದ ಮೇಲೆ ಪೂರ್ಣ ಪರದೆ ಪ್ಯಾನೆಲ್ ಆಗಿ
 export function AdminPanel({
   editId,
+  tab = "add",
   onClose,
   onProductsChanged,
 }: {
   editId: number | string | null;
+  tab?: AdminTab;
   onClose: () => void;
   onProductsChanged: () => void;
 }) {
@@ -184,7 +197,7 @@ export function AdminPanel({
   return (
     <div role="dialog" aria-modal="true" aria-label="ಅಡ್ಮಿನ್ ಪ್ಯಾನೆಲ್" className="fixed inset-0 z-[95] bg-white overflow-y-auto">
       <div className="sticky top-0 z-10 bg-emerald-800 text-white">
-        <div className="max-w-[800px] mx-auto px-4 py-3 flex items-center justify-between gap-3">
+        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <p className="font-bold flex items-center gap-2">
             <Settings className="w-5 h-5" /> ಅಡ್ಮಿನ್ ಪ್ಯಾನೆಲ್
           </p>
@@ -198,7 +211,7 @@ export function AdminPanel({
           </div>
         </div>
       </div>
-      <AdminDashboard embedded initialEditId={editId} onProductsChanged={onProductsChanged} />
+      <AdminDashboard embedded initialEditId={editId} initialTab={tab} onProductsChanged={onProductsChanged} />
     </div>
   );
 }

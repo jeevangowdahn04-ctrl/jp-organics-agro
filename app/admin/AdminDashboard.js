@@ -14,7 +14,8 @@ import {
 import { discountPercent, highlightLines, isInStock } from "@/lib/pricing";
 import CategoryLogosManager from "../components/categories/CategoryLogosManager";
 import { CATEGORIES, categoryOf } from "@/lib/categories";
-import { addProduct, createUploadUrl, deleteProduct, discardUploads, logout, updateProduct } from "./actions";
+import { LayoutGrid, LogOut, Package, Pencil, PlusCircle, Search, Settings, Trash2 } from "lucide-react";
+import { addProduct, createUploadUrl, deleteProduct, discardUploads, logout, setProductStock, updateProduct } from "./actions";
 
 const inputStyle = { width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #ccc" };
 const labelStyle = { display: "block", marginBottom: "5px", fontWeight: "bold" };
@@ -48,8 +49,12 @@ const releasePreview = (img) => img.file && URL.revokeObjectURL(img.preview);
 
 // embedded: ಮುಖಪುಟದ ಇನ್‌ಲೈನ್ ಅಡ್ಮಿನ್ ಪ್ಯಾನೆಲ್ ಒಳಗೆ (ಸ್ವಂತ ಹೆಡರ್/ಲಾಗ್‌ಔಟ್ ಇಲ್ಲ)
 // initialEditId: ತೆರೆದ ತಕ್ಷಣ ಈ ಪ್ರಾಡಕ್ಟ್ ಎಡಿಟ್ ಮೋಡ್‌ನಲ್ಲಿ; onProductsChanged: ಸೇರಿಸು/ಎಡಿಟ್/ಅಳಿಸು ನಂತರ ತಿಳಿಸುವುದು
-/** @param {{ embedded?: boolean, initialEditId?: string | number | null, onProductsChanged?: () => void }} [props] */
-export default function AdminDashboard({ embedded = false, initialEditId = null, onProductsChanged } = {}) {
+// initialTab: "add" (ಹೊಸ ಪ್ರಾಡಕ್ಟ್ / ಎಡಿಟ್ ಫಾರ್ಮ್) | "products" (ಪಟ್ಟಿ: ಎಡಿಟ್, ಸ್ಟಾಕ್, ಅಳಿಸಿ) | "categories" (ವರ್ಗಗಳ ಲೋಗೋ)
+/** @param {{ embedded?: boolean, initialEditId?: string | number | null, initialTab?: "add" | "products" | "categories", onProductsChanged?: () => void }} [props] */
+export default function AdminDashboard({ embedded = false, initialEditId = null, initialTab = "add", onProductsChanged } = {}) {
+  const [tab, setTab] = useState(initialEditId != null ? "add" : initialTab);
+  const [listQuery, setListQuery] = useState("");
+  const [stockBusyId, setStockBusyId] = useState(null);
   const [products, setProducts] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [name, setName] = useState("");
@@ -193,7 +198,8 @@ export default function AdminDashboard({ embedded = false, initialEditId = null,
       setExistingVideo("");
       setYoutubeUrl(p.video_url ?? "");
     }
-    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setTab("add");
+    setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
   };
 
   // Supabase ನಿಂದ ಪ್ರಾಡಕ್ಟ್‌ಗಳ ಪಟ್ಟಿ ಪಡೆಯುವುದು
@@ -226,6 +232,15 @@ export default function AdminDashboard({ embedded = false, initialEditId = null,
     setDeletingId(null);
     if (error) return alert("Error: " + error);
     if (editingId === p.id) resetForm();
+    refreshProducts();
+  };
+
+  // In Stock <-> Out of Stock
+  const toggleStock = async (p) => {
+    setStockBusyId(p.id);
+    const res = await setProductStock(p.id, !isInStock(p));
+    setStockBusyId(null);
+    if (res?.error) return alert("Error: " + res.error);
     refreshProducts();
   };
 
@@ -285,6 +300,7 @@ export default function AdminDashboard({ embedded = false, initialEditId = null,
       alert(editingId ? "ಪ್ರಾಡಕ್ಟ್ ಅಪ್‌ಡೇಟ್ ಆಗಿದೆ!" : "ಪ್ರಾಡಕ್ಟ್ ಯಶಸ್ವಿಯಾಗಿ ಸೇವ್ ಆಗಿದೆ!");
       resetForm();
       refreshProducts();
+      setTab("products");
     } catch (err) {
       // ಸೇವ್ ವಿಫಲವಾದರೆ ಈಗಷ್ಟೇ ಅಪ್‌ಲೋಡ್ ಆದ ಫೈಲ್‌ಗಳನ್ನು Storage ನಲ್ಲಿ ಉಳಿಸಬಾರದು
       if (uploaded.length) await discardUploads(uploaded);
@@ -295,25 +311,69 @@ export default function AdminDashboard({ embedded = false, initialEditId = null,
     }
   };
 
-  return (
-    <div style={{ maxWidth: "800px", margin: embedded ? "0 auto" : "40px auto", padding: embedded ? "12px 16px 24px" : "20px", fontFamily: "sans-serif" }}>
-      <div style={{ display: embedded ? "none" : "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #2e7d32", paddingBottom: "10px" }}>
-        <h1 style={{ margin: 0, color: "#2e7d32" }}>
-          JP Organics - Admin Dashboard
-        </h1>
-        <form action={logout}>
-          <button
-            type="submit"
-            style={{ background: "white", color: "#2e7d32", padding: "6px 14px", border: "1px solid #2e7d32", borderRadius: "4px", cursor: "pointer", fontWeight: "bold" }}>
-            ಲಾಗ್‌ಔಟ್
-          </button>
-        </form>
-      </div>
+  const tabs = [
+    { id: "add", icon: PlusCircle, label: editingId ? `ಎಡಿಟ್ #${editingId}` : "ಹೊಸ ಪ್ರಾಡಕ್ಟ್", sub: editingId ? "Edit" : "Add Product" },
+    { id: "products", icon: Package, label: `ಪ್ರಾಡಕ್ಟ್‌ಗಳು (${products.length})`, sub: "Edit · Stock · Delete" },
+    { id: "categories", icon: LayoutGrid, label: "ವರ್ಗಗಳ ಲೋಗೋ", sub: "Category logos" },
+  ];
+  const q = listQuery.trim().toLowerCase();
+  const listed = q
+    ? products.filter((p) => [p.name, p.name_en, p.category, p.category_en].some((v) => v && String(v).toLowerCase().includes(q)))
+    : products;
 
+  return (
+    <div className={`max-w-4xl mx-auto font-sans text-slate-900 ${embedded ? "px-3 sm:px-4 py-4" : "px-3 sm:px-5 py-6 sm:py-10"}`}>
+      {!embedded && (
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <h1 className="text-lg sm:text-xl font-bold text-emerald-800">JP Organics – Admin</h1>
+          <form action={logout}>
+            <button type="submit" className="flex items-center gap-1.5 text-sm font-semibold border border-emerald-700 text-emerald-800 rounded-full px-3 py-1.5 hover:bg-emerald-50">
+              <LogOut className="w-4 h-4" /> ಲಾಗ್‌ಔಟ್
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* ಅಡ್ಮಿನ್ ಕಂಟ್ರೋಲ್ಸ್: ಎಲ್ಲಾ ನಿರ್ವಹಣೆ ಒಂದೇ ಕಾರ್ಡ್‌ನಲ್ಲಿ, 3 ಟ್ಯಾಬ್‌ಗಳು */}
+      <section className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <div className="px-4 py-3 sm:px-5 sm:py-4 bg-emerald-50/60 border-b border-slate-200">
+          <h2 className="font-bold text-base sm:text-lg flex items-center gap-2">
+            <Settings className="w-5 h-5 text-emerald-700" /> ಅಡ್ಮಿನ್ ಕಂಟ್ರೋಲ್ಸ್
+            <span className="text-xs font-normal text-slate-500">Admin Controls</span>
+          </h2>
+          <p className="text-xs text-slate-600 mt-0.5">ಪ್ರಾಡಕ್ಟ್ ಸೇರಿಸುವುದು, ಎಡಿಟ್, ಸ್ಟಾಕ್, ಅಳಿಸುವುದು ಮತ್ತು ವರ್ಗಗಳ ಲೋಗೋ – ಎಲ್ಲವೂ ಇಲ್ಲೇ.</p>
+        </div>
+
+        <div role="tablist" aria-label="ಅಡ್ಮಿನ್ ಕಂಟ್ರೋಲ್ಸ್" className="grid grid-cols-3 border-b border-slate-200">
+          {tabs.map(({ id, icon: Icon, label, sub }) => {
+            const active = tab === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setTab(id)}
+                className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1 py-2.5 sm:py-3 border-b-2 -mb-px text-center transition ${
+                  active ? "border-emerald-600 text-emerald-800 bg-white" : "border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50"
+                }`}
+              >
+                <Icon className="w-5 h-5 flex-none" />
+                <span className="min-w-0">
+                  <span className="block text-xs sm:text-sm font-bold leading-tight">{label}</span>
+                  <span className="hidden sm:block text-[11px] font-normal text-slate-400">{sub}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="p-3 sm:p-5">
+      {tab === "add" && (
       <form
         ref={formRef}
         onSubmit={handleSubmit}
-        style={{ background: editingId ? "#fff8e1" : "#f9f9f9", border: editingId ? "1px solid #ffe082" : "none", padding: "20px", borderRadius: "8px", marginTop: "20px", scrollMarginTop: "20px" }}>
+        style={{ background: editingId ? "#fff8e1" : "#f9f9f9", border: editingId ? "1px solid #ffe082" : "none", padding: "16px", borderRadius: "12px", scrollMarginTop: "80px" }}>
         <h3 style={{ marginTop: 0 }}>
           {editingId ? `ಪ್ರಾಡಕ್ಟ್ ಎಡಿಟ್ ಮಾಡಿ (Edit Product #${editingId})` : "ಹೊಸ ಪ್ರಾಡಕ್ಟ್ ಸೇರಿಸಿ (Add Product)"}
         </h3>
@@ -594,75 +654,120 @@ export default function AdminDashboard({ embedded = false, initialEditId = null,
         </div>
         {status && <p style={{ margin: "10px 0 0 0", color: "#2e7d32", fontSize: "14px" }}>{status}</p>}
       </form>
+      )}
 
-      {/* ವರ್ಗಗಳ ಲೋಗೋ (ಫೋಟೋ ಅಪ್‌ಲೋಡ್ ಅಥವಾ ಇಮೇಜ್ ಲಿಂಕ್) */}
-      <CategoryLogosManager />
+      {tab === "categories" && <CategoryLogosManager />}
 
-      <h3 style={{ marginTop: "30px" }}>ಹಾಲಿ ಇರುವ ಪ್ರಾಡಕ್ಟ್‌ಗಳು ({products.length})</h3>
-      <div style={{ marginTop: "10px" }}>
-        {products.length === 0 ? (
-          <p style={{ color: "#777" }}>ಯಾವುದೇ ಪ್ರಾಡಕ್ಟ್‌ಗಳು ಇಲ್ಲ.</p>
-        ) : (
-          products.map((p) => {
-            const photos = getProductImages(p);
-            return (
-              <div
-                key={p.id}
-                style={{ display: "flex", gap: "12px", alignItems: "center", border: editingId === p.id ? "2px solid #ffb300" : "1px solid #ddd", padding: "12px", borderRadius: "6px", marginBottom: "10px", background: "#fff" }}>
-                {photos[0] ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={photos[0]} alt={p.name} style={{ width: "64px", height: "64px", objectFit: "cover", borderRadius: "4px", flexShrink: 0 }} />
-                ) : (
-                  <div style={{ width: "64px", height: "64px", background: "#f0f0f0", borderRadius: "4px", flexShrink: 0 }} />
-                )}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <h4 style={{ margin: "0 0 3px 0", color: "#333" }}>
-                    {p.name}
-                    {p.name_en && p.name_en !== p.name ? <span style={{ color: "#777", fontWeight: "normal" }}> / {p.name_en}</span> : null}
-                    <span style={{ fontSize: "11px", fontWeight: "normal", color: p.name_en ? "#2e7d32" : "#999", marginLeft: "6px" }}>
-                      {p.name_en ? "ಕ + EN" : "ಕ ಮಾತ್ರ"}
-                    </span>
-                  </h4>
-                  <p style={{ margin: "0 0 4px 0", fontSize: "13px" }}>
-                    <b>₹{p.price}</b>
-                    {discountPercent(p.price, p.mrp) > 0 && (
-                      <>
-                        {" "}<s style={{ color: "#888" }}>₹{p.mrp}</s>{" "}
-                        <span style={{ color: "#c62828", fontWeight: "bold" }}>{discountPercent(p.price, p.mrp)}% OFF</span>
-                      </>
-                    )}
-                    {" · "}
-                    <span style={{ color: isInStock(p) ? "#2e7d32" : "#c62828", fontWeight: "bold" }}>
-                      {isInStock(p) ? "In Stock" : "Out of Stock"}
-                    </span>
-                    {p.category ? <span style={{ color: "#777" }}> · {p.category}</span> : null}
-                  </p>
-                  <p style={{ margin: 0, color: "#666", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.description}</p>
-                  <p style={{ margin: "4px 0 0 0", fontSize: "12px", color: "#2e7d32" }}>
-                    📷 {photos.length} ಫೋಟೋ{p.video_url ? " · ▶ ವಿಡಿಯೋ ಇದೆ" : ""}
-                  </p>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "6px", flexShrink: 0 }}>
-                  <button
-                    type="button"
-                    onClick={() => startEdit(p)}
-                    disabled={loading}
-                    style={{ ...smallButton, background: "white", color: "#2e7d32", border: "1px solid #2e7d32" }}>
-                    ✏️ Edit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(p)}
-                    disabled={deletingId === p.id || loading}
-                    style={{ ...smallButton, background: "#c62828", color: "white", border: "none" }}>
-                    {deletingId === p.id ? "ಅಳಿಸುತ್ತಿದೆ..." : "🗑️ Delete"}
-                  </button>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
+      {tab === "products" && (
+        <div className="space-y-3">
+          <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+            <label className="relative flex-1">
+              <span className="sr-only">ಪ್ರಾಡಕ್ಟ್ ಹುಡುಕಿ</span>
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="search"
+                value={listQuery}
+                onChange={(e) => setListQuery(e.target.value)}
+                placeholder="ಪ್ರಾಡಕ್ಟ್ ಹುಡುಕಿ (ಹೆಸರು / ವರ್ಗ)..."
+                className="w-full border border-slate-300 rounded-xl pl-9 pr-3 py-2.5 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => {
+                resetForm();
+                setTab("add");
+              }}
+              className="flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl"
+            >
+              <PlusCircle className="w-4 h-4" /> ಹೊಸ ಪ್ರಾಡಕ್ಟ್
+            </button>
+          </div>
+
+          {listed.length === 0 ? (
+            <p className="text-sm text-slate-500 text-center py-8 border border-dashed rounded-xl">
+              {products.length === 0 ? "ಯಾವುದೇ ಪ್ರಾಡಕ್ಟ್‌ಗಳು ಇಲ್ಲ." : "ಹುಡುಕಿದ ಪ್ರಾಡಕ್ಟ್ ಸಿಗಲಿಲ್ಲ."}
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {listed.map((p) => {
+                const photos = getProductImages(p);
+                const off = discountPercent(p.price, p.mrp);
+                const stock = isInStock(p);
+                const cat = categoryOf(p);
+                return (
+                  <li
+                    key={p.id}
+                    className={`border rounded-xl p-3 bg-white flex flex-col sm:flex-row gap-3 sm:items-center ${
+                      editingId === p.id ? "border-amber-400 ring-2 ring-amber-100" : "border-slate-200"
+                    }`}
+                  >
+                    <div className="flex gap-3 items-center min-w-0 flex-1">
+                      {photos[0] ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={photos[0]} alt={p.name} className="w-14 h-14 sm:w-16 sm:h-16 object-cover rounded-lg flex-none" />
+                      ) : (
+                        <div className="w-14 h-14 sm:w-16 sm:h-16 bg-slate-100 rounded-lg flex-none" />
+                      )}
+                      <div className="min-w-0">
+                        <p className="font-bold text-sm truncate">
+                          {p.name}
+                          {p.name_en && p.name_en !== p.name ? <span className="text-slate-500 font-normal"> / {p.name_en}</span> : null}
+                        </p>
+                        <p className="text-xs mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                          <b>₹{p.price}</b>
+                          {off > 0 && (
+                            <>
+                              <s className="text-slate-400">₹{p.mrp}</s>
+                              <span className="text-red-600 font-bold">{off}% OFF</span>
+                            </>
+                          )}
+                          <span className={stock ? "text-emerald-700 font-semibold" : "text-red-600 font-semibold"}>{stock ? "In Stock" : "Out of Stock"}</span>
+                          <span className={cat ? "text-slate-500" : "text-amber-700"}>{cat ? `${cat.kn} / ${cat.en}` : "ವರ್ಗ ಇಲ್ಲ"}</span>
+                        </p>
+                        <p className="text-[11px] text-emerald-700 mt-0.5">
+                          📷 {photos.length} ಫೋಟೋ{p.video_url ? " · ▶ ವಿಡಿಯೋ" : ""} · {p.name_en ? "ಕ + EN" : "ಕ ಮಾತ್ರ"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1.5 sm:flex sm:flex-none">
+                      <button
+                        type="button"
+                        onClick={() => startEdit(p)}
+                        disabled={loading}
+                        className="flex items-center justify-center gap-1 text-xs font-semibold border border-emerald-600 text-emerald-700 rounded-lg px-3 py-2 hover:bg-emerald-50 disabled:opacity-50"
+                      >
+                        <Pencil className="w-3.5 h-3.5" /> ಎಡಿಟ್
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleStock(p)}
+                        disabled={stockBusyId === p.id || loading}
+                        title={stock ? "Out of Stock ಮಾಡಿ" : "In Stock ಮಾಡಿ"}
+                        className={`text-xs font-semibold rounded-lg px-3 py-2 border disabled:opacity-50 ${
+                          stock ? "border-emerald-600 bg-emerald-50 text-emerald-700" : "border-red-400 bg-red-50 text-red-700"
+                        }`}
+                      >
+                        {stockBusyId === p.id ? "..." : stock ? "✅ ಸ್ಟಾಕ್ ಇದೆ" : "⛔ ಸ್ಟಾಕ್ ಇಲ್ಲ"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(p)}
+                        disabled={deletingId === p.id || loading}
+                        className="flex items-center justify-center gap-1 text-xs font-semibold bg-red-600 hover:bg-red-700 text-white rounded-lg px-3 py-2 disabled:opacity-50"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> {deletingId === p.id ? "..." : "ಅಳಿಸಿ"}
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      )}
+        </div>
+      </section>
     </div>
   );
 }

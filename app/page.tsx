@@ -209,7 +209,7 @@ export default function Home() {
       </header>
 
       {isAdmin && (
-        <AdminBar onAdd={adminPanel.openAdd} onOpenPanel={adminPanel.openAdd} onLoggedOut={() => setIsAdmin(false)} />
+        <AdminBar onOpen={adminPanel.openTab} onLoggedOut={() => setIsAdmin(false)} />
       )}
 
       {/* Hero Banner */}
@@ -262,25 +262,6 @@ export default function Home() {
       <section id="categories" className="max-w-6xl xl:max-w-7xl mx-auto px-4 py-10 scroll-mt-24">
         <div className="flex items-end justify-between gap-3 mb-6 flex-wrap">
           <h3 className="text-xl font-bold text-slate-800">{t("categories.title")}</h3>
-          {isAdmin && (
-            <button
-              type="button"
-              onClick={() => {
-                adminPanel.openAdd();
-                // ಪ್ಯಾನೆಲ್ ತೆರೆದು ಲೋಗೋ ಭಾಗ ಕಾಣಿಸುವವರೆಗೆ ಕಾದು ಅಲ್ಲಿಗೆ ಸ್ಕ್ರೋಲ್ (ಗರಿಷ್ಠ ~3 ಸೆಕೆಂಡ್)
-                let tries = 0;
-                const jump = () => {
-                  const el = document.getElementById("category-logos");
-                  if (el) el.scrollIntoView({ block: "start" });
-                  else if (tries++ < 30) setTimeout(jump, 100);
-                };
-                setTimeout(jump, 100);
-              }}
-              className="text-xs font-semibold bg-amber-50 border border-amber-300 text-amber-900 px-3 py-1.5 rounded-full hover:bg-amber-100"
-            >
-              {t("cat.editLogos")}
-            </button>
-          )}
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
           {SHOP_CATEGORIES.map((cat) => {
@@ -531,6 +512,7 @@ export default function Home() {
         <AdminPanel
           key={adminPanel.panel.key}
           editId={adminPanel.panel.editId}
+          tab={adminPanel.panel.tab}
           onClose={adminPanel.close}
           onProductsChanged={fetchProducts}
         />

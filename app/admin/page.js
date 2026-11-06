@@ -4,7 +4,7 @@ import AdminDashboard from "./AdminDashboard";
 import LoginForm from "./LoginForm";
 
 // ಹುಡುಕಾಟ ಯಂತ್ರಗಳು (Google) ಈ ಪುಟವನ್ನು ತೋರಿಸಬಾರದು
-export const metadata = { title: "JP Organics", robots: { index: false, follow: false } };
+export const metadata = { title: { absolute: "JP Organics – Admin" }, robots: { index: false, follow: false } };
 
 // ಸರಿಯಾದ ಪಾಸ್‌ವರ್ಡ್ ಕುಕೀ ಇದ್ದರೆ ಮಾತ್ರ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್, ಇಲ್ಲದಿದ್ದರೆ ಲಾಗಿನ್ ಫಾರ್ಮ್
 async function AdminGate() {
