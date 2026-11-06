@@ -68,8 +68,14 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   return <LanguageContext value={value}>{children}</LanguageContext>;
 }
 
-export function useLanguage() {
+// ಪ್ರತಿ ಕಾಂಪೊನೆಂಟ್ ಭಾಷೆಯನ್ನು ತಾನೇ ಓದುತ್ತದೆ (context ಮೂಲಕವಲ್ಲ):
+// hydration ಸಮಯದಲ್ಲಿ React ಮೊದಲು ಸರ್ವರ್‌ನ ಭಾಷೆಯಲ್ಲಿ (ಕನ್ನಡ) ತೋರಿಸಿ ನಂತರ ಉಳಿಸಿದ ಭಾಷೆಗೆ ಬದಲಾಯಿಸುತ್ತದೆ.
+// Suspense ಒಳಗೆ ತಡವಾಗಿ hydrate ಆಗುವ ಭಾಗಗಳಿಗೂ (ಕೆಳಗಿನ ಬಾರ್, ಪ್ರಾಡಕ್ಟ್ ಪುಟ) ಇದು ಪ್ರತ್ಯೇಕವಾಗಿ ನಡೆಯುವುದರಿಂದ
+// ಸರ್ವರ್ HTML ಜೊತೆ ಹೊಂದಿಕೆ ತಪ್ಪುವುದಿಲ್ಲ (English ಆಯ್ಕೆ ಮಾಡಿದಾಗ ಬರುತ್ತಿದ್ದ hydration ದೋಷ).
+export function useLanguage(): LanguageContextValue {
   const ctx = useContext(LanguageContext);
   if (!ctx) throw new Error("useLanguage must be used inside <LanguageProvider>");
-  return ctx;
+  const lang = useSyncExternalStore(subscribe, getSnapshot, () => DEFAULT_LANG);
+  const t = useCallback<LanguageContextValue["t"]>((key, vars) => translate(lang, key, vars), [lang]);
+  return useMemo(() => ({ lang, setLang: setStoredLang, t }), [lang, t]);
 }
